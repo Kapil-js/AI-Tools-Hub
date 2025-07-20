@@ -1,37 +1,39 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Navbar } from '@/components/navbar';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { 
-  Calendar, 
-  Clock, 
-  User, 
-  ArrowLeft, 
-  Share2, 
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { Navbar } from "@/components/navbar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Calendar,
+  Clock,
+  User,
+  ArrowLeft,
+  Share2,
   Bookmark,
   ThumbsUp,
   MessageCircle,
   ArrowRight,
   Copy,
-  Download
-} from 'lucide-react';
-import { copyToClipboard, downloadFile } from '@/lib/utils-client';
+  Download,
+} from "lucide-react";
+import { copyToClipboard, downloadFile } from "@/lib/utils-client";
 
 // This would typically come from a CMS or API
 const blogPost = {
   id: 1,
-  title: 'The Future of AI-Powered Content Creation',
-  excerpt: 'Explore how artificial intelligence is revolutionizing the way we create, edit, and optimize content across various industries.',
-  author: 'Sarah Johnson',
-  date: '2024-01-15',
-  readTime: '8 min read',
-  category: 'AI Technology',
-  image: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  title: "The Future of AI-Powered Content Creation",
+  excerpt:
+    "Explore how artificial intelligence is revolutionizing the way we create, edit, and optimize content across various industries.",
+  author: "Sarah Johnson",
+  date: "2024-01-15",
+  readTime: "8 min read",
+  category: "AI Technology",
+  image:
+    "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200",
   content: `
 # The Future of AI-Powered Content Creation
 
@@ -164,43 +166,56 @@ The future is not about choosing between human or AI content creation—it's abo
 
 *What are your thoughts on AI-powered content creation? Share your experiences and insights in the comments below.*
   `,
-  tags: ['AI', 'Content Creation', 'Technology', 'Future Trends', 'Digital Marketing'],
+  tags: [
+    "AI",
+    "Content Creation",
+    "Technology",
+    "Future Trends",
+    "Digital Marketing",
+  ],
   likes: 127,
-  comments: 23
+  comments: 23,
 };
 
 const relatedPosts = [
   {
     id: 2,
-    title: 'Best Practices for YouTube Thumbnail Design',
-    image: 'https://images.pexels.com/photos/4348401/pexels-photo-4348401.jpeg?auto=compress&cs=tinysrgb&w=400',
-    readTime: '6 min read'
+    title: "Best Practices for YouTube Thumbnail Design",
+    image:
+      "https://images.pexels.com/photos/4348401/pexels-photo-4348401.jpeg?auto=compress&cs=tinysrgb&w=400",
+    readTime: "6 min read",
   },
   {
     id: 3,
-    title: 'Instagram Marketing: Caption Strategies That Convert',
-    image: 'https://images.pexels.com/photos/267350/pexels-photo-267350.jpeg?auto=compress&cs=tinysrgb&w=400',
-    readTime: '7 min read'
+    title: "Instagram Marketing: Caption Strategies That Convert",
+    image:
+      "https://images.pexels.com/photos/267350/pexels-photo-267350.jpeg?auto=compress&cs=tinysrgb&w=400",
+    readTime: "7 min read",
   },
   {
     id: 4,
-    title: 'Resume Writing in the AI Era: What Recruiters Want',
-    image: 'https://images.pexels.com/photos/590016/pexels-photo-590016.jpeg?auto=compress&cs=tinysrgb&w=400',
-    readTime: '9 min read'
-  }
+    title: "Resume Writing in the AI Era: What Recruiters Want",
+    image:
+      "https://images.pexels.com/photos/590016/pexels-photo-590016.jpeg?auto=compress&cs=tinysrgb&w=400",
+    readTime: "9 min read",
+  },
 ];
 
-export default function BlogPostClient({ id }) {
+export default function BlogPostClient() {
   const [isMounted, setIsMounted] = useState(false);
-  
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  
+
   if (!isMounted) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
   }
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <Navbar />
@@ -209,7 +224,10 @@ export default function BlogPostClient({ id }) {
         {/* Back Button */}
         <div className="mb-8">
           <Link href="/blog">
-            <Button variant="ghost" className="hover:bg-purple-50 dark:hover:bg-purple-900/20">
+            <Button
+              variant="ghost"
+              className="hover:bg-purple-50 dark:hover:bg-purple-900/20"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Blog
             </Button>
@@ -222,8 +240,8 @@ export default function BlogPostClient({ id }) {
             <Card className="shadow-lg border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm overflow-hidden">
               {/* Hero Image */}
               <div className="relative h-64 md:h-80">
-                <img 
-                  src={blogPost.image} 
+                <img
+                  src={blogPost.image}
                   alt={blogPost.title}
                   className="w-full h-full object-cover"
                 />
@@ -240,7 +258,7 @@ export default function BlogPostClient({ id }) {
                   <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
                     {blogPost.title}
                   </h1>
-                  
+
                   <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 dark:text-slate-400 mb-6">
                     <div className="flex items-center">
                       <User className="w-4 h-4 mr-1" />
@@ -266,10 +284,16 @@ export default function BlogPostClient({ id }) {
                       <MessageCircle className="w-4 h-4 mr-2" />
                       {blogPost.comments}
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => isMounted && copyToClipboard(window.location.href, "Link copied to clipboard!")}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        isMounted &&
+                        copyToClipboard(
+                          window.location.href,
+                          "Link copied to clipboard!"
+                        )
+                      }
                     >
                       <Copy className="w-4 h-4 mr-2" />
                       Copy Link
@@ -289,56 +313,77 @@ export default function BlogPostClient({ id }) {
 
                 {/* Article Content */}
                 <div className="prose prose-slate dark:prose-invert max-w-none relative">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="absolute top-0 right-0" 
-                    onClick={() => isMounted && copyToClipboard(blogPost.content, "Article content copied to clipboard!")}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="absolute top-0 right-0"
+                    onClick={() =>
+                      isMounted &&
+                      copyToClipboard(
+                        blogPost.content,
+                        "Article content copied to clipboard!"
+                      )
+                    }
                   >
                     <Copy className="w-4 h-4 mr-2" />
                     Copy Content
                   </Button>
                   <div className="whitespace-pre-line text-slate-700 dark:text-slate-300 leading-relaxed">
-                    {blogPost.content.split('\n').map((paragraph, index) => {
-                      if (paragraph.startsWith('# ')) {
+                    {blogPost.content.split("\n").map((paragraph, index) => {
+                      if (paragraph.startsWith("# ")) {
                         return (
-                          <h1 key={index} className="text-3xl font-bold text-slate-900 dark:text-white mt-8 mb-4">
-                            {paragraph.replace('# ', '')}
+                          <h1
+                            key={index}
+                            className="text-3xl font-bold text-slate-900 dark:text-white mt-8 mb-4"
+                          >
+                            {paragraph.replace("# ", "")}
                           </h1>
                         );
                       }
-                      if (paragraph.startsWith('## ')) {
+                      if (paragraph.startsWith("## ")) {
                         return (
-                          <h2 key={index} className="text-2xl font-bold text-slate-900 dark:text-white mt-6 mb-3">
-                            {paragraph.replace('## ', '')}
+                          <h2
+                            key={index}
+                            className="text-2xl font-bold text-slate-900 dark:text-white mt-6 mb-3"
+                          >
+                            {paragraph.replace("## ", "")}
                           </h2>
                         );
                       }
-                      if (paragraph.startsWith('### ')) {
+                      if (paragraph.startsWith("### ")) {
                         return (
-                          <h3 key={index} className="text-xl font-semibold text-slate-900 dark:text-white mt-4 mb-2">
-                            {paragraph.replace('### ', '')}
+                          <h3
+                            key={index}
+                            className="text-xl font-semibold text-slate-900 dark:text-white mt-4 mb-2"
+                          >
+                            {paragraph.replace("### ", "")}
                           </h3>
                         );
                       }
-                      if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
+                      if (
+                        paragraph.startsWith("**") &&
+                        paragraph.endsWith("**")
+                      ) {
                         return (
-                          <p key={index} className="font-semibold text-slate-900 dark:text-white mb-2">
-                            {paragraph.replace(/\*\*/g, '')}
+                          <p
+                            key={index}
+                            className="font-semibold text-slate-900 dark:text-white mb-2"
+                          >
+                            {paragraph.replace(/\*\*/g, "")}
                           </p>
                         );
                       }
-                      if (paragraph.startsWith('- ')) {
+                      if (paragraph.startsWith("- ")) {
                         return (
                           <li key={index} className="ml-4 mb-1">
-                            {paragraph.replace('- ', '')}
+                            {paragraph.replace("- ", "")}
                           </li>
                         );
                       }
-                      if (paragraph.trim() === '---') {
+                      if (paragraph.trim() === "---") {
                         return <Separator key={index} className="my-6" />;
                       }
-                      if (paragraph.trim() === '') {
+                      if (paragraph.trim() === "") {
                         return <br key={index} />;
                       }
                       return (
@@ -352,7 +397,9 @@ export default function BlogPostClient({ id }) {
 
                 {/* Tags */}
                 <div className="mt-8 pt-6 border-t dark:border-slate-700">
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-3">Tags</h3>
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                    Tags
+                  </h3>
                   <div className="flex flex-wrap gap-2">
                     {blogPost.tags.map((tag) => (
                       <Badge key={tag} variant="secondary">
@@ -361,27 +408,46 @@ export default function BlogPostClient({ id }) {
                     ))}
                   </div>
                 </div>
-                
+
                 {/* Download Options */}
                 <div className="mt-8 pt-6 border-t dark:border-slate-700">
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-3">Download Options</h3>
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+                    Download Options
+                  </h3>
                   <div className="flex flex-wrap gap-3">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => isMounted && downloadFile(blogPost.content, `${blogPost.title.replace(/\s+/g, '-').toLowerCase()}.txt`)}
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        isMounted &&
+                        downloadFile(
+                          blogPost.content,
+                          `${blogPost.title
+                            .replace(/\s+/g, "-")
+                            .toLowerCase()}.txt`
+                        )
+                      }
                     >
                       <Download className="w-4 h-4 mr-2" />
                       Download as TXT
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => isMounted && downloadFile(blogPost.content, `${blogPost.title.replace(/\s+/g, '-').toLowerCase()}.md`, 'text/markdown')}
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        isMounted &&
+                        downloadFile(
+                          blogPost.content,
+                          `${blogPost.title
+                            .replace(/\s+/g, "-")
+                            .toLowerCase()}.md`,
+                          "text/markdown"
+                        )
+                      }
                     >
                       <Download className="w-4 h-4 mr-2" />
                       Download as Markdown
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => {
                         if (!isMounted) return;
                         const htmlContent = `<!DOCTYPE html>
@@ -398,14 +464,25 @@ export default function BlogPostClient({ id }) {
 <body>
   <h1>${blogPost.title}</h1>
   <div class="meta">
-    <p>Author: ${blogPost.author} | Published: ${blogPost.date} | ${blogPost.readTime}</p>
+    <p>Author: ${blogPost.author} | Published: ${blogPost.date} | ${
+                          blogPost.readTime
+                        }</p>
   </div>
   <div class="content">
-    ${blogPost.content.split('\n').map(p => `<p>${p}</p>`).join('')}
+    ${blogPost.content
+      .split("\n")
+      .map((p) => `<p>${p}</p>`)
+      .join("")}
   </div>
 </body>
 </html>`;
-                        downloadFile(htmlContent, `${blogPost.title.replace(/\s+/g, '-').toLowerCase()}.html`, 'text/html');
+                        downloadFile(
+                          htmlContent,
+                          `${blogPost.title
+                            .replace(/\s+/g, "-")
+                            .toLowerCase()}.html`,
+                          "text/html"
+                        );
                       }}
                     >
                       <Download className="w-4 h-4 mr-2" />
@@ -448,8 +525,8 @@ export default function BlogPostClient({ id }) {
                     {relatedPosts.map((post) => (
                       <Link key={post.id} href={`/blog/${post.id}`}>
                         <div className="flex space-x-3 group cursor-pointer">
-                          <img 
-                            src={post.image} 
+                          <img
+                            src={post.image}
                             alt={post.title}
                             className="w-16 h-16 object-cover rounded group-hover:scale-105 transition-transform"
                           />
