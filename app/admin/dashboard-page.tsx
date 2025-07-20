@@ -179,7 +179,7 @@ export default function AdminDashboard() {
             value={toolStats?.totalTools || 0}
             change={15.3}
             changeLabel="from last month"
-            icon={Tool}
+            icon={BadgePlus}
             loading={loading}
           />
         </div>
@@ -285,7 +285,7 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <Tool className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                  <BadgePlus className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
                   <p className="text-muted-foreground">No tool usage data yet</p>
                 </div>
               )}
@@ -373,7 +373,7 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 Tools Usage
-                <Tool className="w-4 h-4 text-muted-foreground" />
+                <BadgePlus className="w-4 h-4 text-muted-foreground" />
               </CardTitle>
             </CardHeader>
             <CardContent>
