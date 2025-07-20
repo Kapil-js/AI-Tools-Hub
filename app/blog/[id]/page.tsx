@@ -13,5 +13,5 @@ export function generateStaticParams() {
 }
 
 export default function Page({ params }: any) {
-  return <BlogPostClient id={params.id} />;
+  return <BlogPostClient />;
 }
