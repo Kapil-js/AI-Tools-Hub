@@ -12,14 +12,14 @@ import {
   BarChart3, 
   Activity,
   TrendingUp,
-  Tool,
   Calendar,
   Eye,
   Heart,
   Globe,
   Plus,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  BadgePlus
 } from 'lucide-react';
 import { AdminFirestoreService } from '@/lib/admin-firestore';
 import type { UserStats, ContentStats, ToolStats } from '@/lib/admin-firestore';
@@ -102,7 +102,7 @@ export default function AdminDashboard() {
     {
       title: 'Add AI Tool',
       description: 'Add a new AI tool to the platform',
-      icon: Tool,
+      icon: BadgePlus,
       href: '/admin/tools/new',
       color: 'bg-blue-500'
     },
