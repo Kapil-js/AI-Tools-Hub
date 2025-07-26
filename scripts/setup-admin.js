@@ -1,150 +1,133 @@
-// Setup Admin User Script
-// Run this script to create an admin user in Firebase
-
+// Admin setup script
 const admin = require('firebase-admin');
-const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
 
 // Initialize Firebase Admin SDK
-const serviceAccount = {
-  // Add your Firebase Admin SDK service account key here
-  // You can download this from Firebase Console > Project Settings > Service Accounts
-};
-
-if (!admin.apps.length) {
+// You need to download your service account key from Firebase Console
+// and place it in the project root or update the path below
+try {
+  const serviceAccount = require('./firebase-service-account.json');
+  
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://ai-tools-hub-d6205.firebaseapp.com"
+    databaseURL: 'https://ai-tools-hub-d6205.firebaseio.com'
   });
+} catch (error) {
+  process.exit(1);
 }
 
-const auth = getAuth();
-const db = getFirestore();
+const db = admin.firestore();
+const auth = admin.auth();
 
-async function createAdminUser() {
+async function setupAdmin() {
   try {
-    const email = 'admin@aitoolshub.com';
-    const password = 'admin123';
-    const displayName = 'System Administrator';
+    
+    // Check if admin user already exists
+    try {
+      const existingUser = await auth.getUserByEmail('admin@aitoolshub.com');
+      
+      // Update admin document in Firestore
+      await db.collection('admins').doc(existingUser.uid).set({
+        uid: existingUser.uid,
+        email: 'admin@aitoolshub.com',
+        role: 'super_admin',
+        permissions: ['all'],
+        isActive: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+  
+      return;
+    } catch (error) {
+      // User doesn't exist, create new one
+    }
 
-    // Create user in Firebase Auth
+    // Create admin user
     const userRecord = await auth.createUser({
-      email: email,
-      password: password,
-      displayName: displayName,
-      emailVerified: true,
+      email: 'admin@aitoolshub.com',
+      password: 'admin123',
+      displayName: 'Admin User',
+      emailVerified: true
     });
 
-    console.log('✅ Admin user created in Firebase Auth:', userRecord.uid);
 
-    // Add user to Firestore users collection
-    await db.collection('users').doc(userRecord.uid).set({
-      uid: userRecord.uid,
-      email: email,
-      displayName: displayName,
-      photoURL: '',
-      provider: 'email',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
-      isActive: true,
-    });
-
-    console.log('✅ User document created in Firestore');
-
-    // Add admin record to admins collection
+    // Add admin document to Firestore
     await db.collection('admins').doc(userRecord.uid).set({
       uid: userRecord.uid,
-      email: email,
-      displayName: displayName,
+      email: 'admin@aitoolshub.com',
       role: 'super_admin',
-      permissions: [
-        'dashboard.view',
-        'users.view',
-        'users.edit',
-        'users.delete',
-        'content.view',
-        'content.edit',
-        'content.delete',
-        'blog.view',
-        'blog.edit',
-        'blog.delete',
-        'tools.view',
-        'tools.edit',
-        'tools.delete',
-        'analytics.view',
-        'settings.view',
-        'settings.edit',
-        'admins.view',
-        'admins.edit',
-        'system.view',
-        'system.edit',
-      ],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdBy: userRecord.uid,
+      permissions: ['all'],
       isActive: true,
-      lastActive: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log('✅ Admin record created in Firestore');
-    console.log('🎉 Setup complete!');
-    console.log('');
-    console.log('Admin Login Credentials:');
-    console.log('Email:', email);
-    console.log('Password:', password);
+    // Also add to users collection with admin role
+    await db.collection('users').doc(userRecord.uid).set({
+      uid: userRecord.uid,
+      email: 'admin@aitoolshub.com',
+      displayName: 'Admin User',
+      role: 'admin',
+      isActive: true,
+      isPremium: true,
+      provider: 'email',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLoginAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
     
   } catch (error) {
-    console.error('❌ Error creating admin user:', error);
-    
-    if (error.code === 'auth/email-already-exists') {
-      console.log('📝 User already exists, trying to update admin permissions...');
-      
-      try {
-        // Get existing user
-        const userRecord = await auth.getUserByEmail('admin@aitoolshub.com');
-        
-        // Update admin permissions
-        await db.collection('admins').doc(userRecord.uid).set({
-          uid: userRecord.uid,
-          email: 'admin@aitoolshub.com',
-          displayName: 'System Administrator',
-          role: 'super_admin',
-          permissions: [
-            'dashboard.view',
-            'users.view',
-            'users.edit',
-            'users.delete',
-            'content.view',
-            'content.edit',
-            'content.delete',
-            'blog.view',
-            'blog.edit',
-            'blog.delete',
-            'tools.view',
-            'tools.edit',
-            'tools.delete',
-            'analytics.view',
-            'settings.view',
-            'settings.edit',
-            'admins.view',
-            'admins.edit',
-            'system.view',
-            'system.edit',
-          ],
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          createdBy: userRecord.uid,
-          isActive: true,
-          lastActive: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
-        
-        console.log('✅ Admin permissions updated');
-        console.log('Email: admin@aitoolshub.com');
-        console.log('Password: admin123');
-        
-      } catch (updateError) {
-        console.error('❌ Error updating admin permissions:', updateError);
-      }
-    }
+    console.error('❌ Error setting up admin user:', error);
   }
 }
 
-createAdminUser();
+async function setupDefaultData() {
+  try {
+    // Create default site settings
+    await db.collection('site_settings').doc('main').set({
+      siteName: 'AI Tools Hub',
+      siteDescription: 'Your All-in-One AI Toolkit',
+      siteUrl: 'https://scalestack.in',
+      contactEmail: 'contact@aitoolshub.com',
+      supportEmail: 'support@aitoolshub.com',
+      maintenanceMode: false,
+      registrationEnabled: true,
+      emailVerificationRequired: true,
+      maxFileSize: 10,
+      allowedFileTypes: ['jpg', 'jpeg', 'png', 'pdf', 'docx'],
+      theme: {
+        primaryColor: '#8B5CF6',
+        secondaryColor: '#3B82F6',
+        darkMode: false
+      },
+      notifications: {
+        emailNotifications: true,
+        pushNotifications: false,
+        marketingEmails: false
+      },
+      security: {
+        passwordMinLength: 8,
+        requireStrongPassword: true,
+        sessionTimeout: 24,
+        maxLoginAttempts: 5
+      },
+      analytics: {
+        googleAnalyticsId: '',
+        trackingEnabled: false
+      },
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    
+    
+  } catch (error) {
+    console.error('❌ Error setting up default data:', error);
+  }
+}
+
+async function main() {
+  await setupAdmin();
+  await setupDefaultData();
+  
+  process.exit(0);
+}
+
+main().catch(console.error);

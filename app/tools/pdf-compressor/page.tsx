@@ -11,12 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Upload, Download, FileText, Zap, File, Copy } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { downloadFile, copyToClipboard } from '@/lib/utils-client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function PDFCompressor() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [compressionLevel, setCompressionLevel] = useState('medium');
+  const { user } = useAuth();
+  const router = useRouter();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -211,13 +215,17 @@ export default function PDFCompressor() {
                         <div className="space-y-2">
                           <Button 
                             className="w-full" 
-                            onClick={() => downloadFile(
-                              // In a real app, this would be the compressed file
-                              // For demo, we're using the original file
-                              uploadedFile,
-                              `compressed-${uploadedFile.name}`,
-                              'application/pdf'
-                            )}
+                            onClick={() => {
+                              if (!user) {
+                                router.push(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+                                return;
+                              }
+                              downloadFile(
+                                uploadedFile,
+                                `compressed-${uploadedFile.name}`,
+                                'application/pdf'
+                              );
+                            }}
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download Compressed PDF

@@ -17,7 +17,23 @@ import {
   Wrench,
   Zap,
   Lock,
-  Repeat
+  Repeat,
+  Merge,
+  Scissors,
+  File,
+  Presentation,
+  Table,
+  Edit,
+  Camera,
+  Droplets,
+  RotateCw,
+  Code,
+  Unlock,
+  Scan,
+  Eye,
+  GitCompare,
+  EyeOff,
+  Crop
 } from 'lucide-react';
 
 const tools = [
@@ -76,6 +92,63 @@ const tools = [
     icon: PenTool,
     href: '/tools/article-writer',
     color: 'from-indigo-500 to-purple-500'
+  },
+  // PDF Tools
+  {
+    id: 'merge-pdf',
+    title: 'Merge PDF',
+    description: 'Combine PDFs in the order you want with the easiest PDF merger available',
+    icon: Merge,
+    href: '/tools/merge-pdf',
+    color: 'from-blue-500 to-purple-500'
+  },
+  {
+    id: 'split-pdf',
+    title: 'Split PDF',
+    description: 'Separate one page or a whole set for easy conversion into independent PDF files',
+    icon: Scissors,
+    href: '/tools/split-pdf',
+    color: 'from-orange-500 to-red-500'
+  },
+  {
+    id: 'pdf-to-word',
+    title: 'PDF to Word',
+    description: 'Easily convert your PDF files into easy to edit DOC and DOCX documents',
+    icon: File,
+    href: '/tools/pdf-to-word',
+    color: 'from-blue-500 to-indigo-500'
+  },
+  {
+    id: 'word-to-pdf',
+    title: 'Word to PDF',
+    description: 'Make DOC and DOCX files easy to read by converting them to PDF',
+    icon: FileText,
+    href: '/tools/word-to-pdf',
+    color: 'from-indigo-500 to-blue-500'
+  },
+  {
+    id: 'pdf-to-jpg',
+    title: 'PDF to JPG',
+    description: 'Convert PDF pages to high-quality JPG images',
+    icon: Camera,
+    href: '/tools/pdf-to-jpg',
+    color: 'from-cyan-500 to-blue-500'
+  },
+  {
+    id: 'jpg-to-pdf',
+    title: 'JPG to PDF',
+    description: 'Convert JPG images to PDF in seconds. Easily adjust orientation and margins',
+    icon: ImageIcon,
+    href: '/tools/jpg-to-pdf',
+    color: 'from-pink-500 to-red-500'
+  },
+  {
+    id: 'unlock-pdf',
+    title: 'Unlock PDF',
+    description: 'Remove password protection from PDF files',
+    icon: Unlock,
+    href: '/tools/unlock-pdf',
+    color: 'from-red-500 to-pink-500'
   }
 ];
 

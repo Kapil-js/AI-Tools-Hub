@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { Navbar } from '@/components/navbar';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,15 +72,41 @@ export default function Contact() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate form submission
-    setTimeout(() => {
-      setIsSubmitting(false);
-      alert('Thank you for your message! We\'ll get back to you soon.');
+    try {
+      // Save contact form data to Firebase
+      const contactDoc = await addDoc(collection(db, 'contact_messages'), {
+        ...formData,
+        status: 'new',
+        createdAt: serverTimestamp(),
+        isRead: false
+      });
+      
+      // Create admin notification
+      const notificationDoc = await addDoc(collection(db, 'admin_notifications'), {
+        type: 'contact_form',
+        title: 'New Contact Form Submission',
+        message: `New message from ${formData.name} (${formData.email})`,
+        data: {
+          contactId: formData.email,
+          subject: formData.subject,
+          inquiryType: formData.inquiryType
+        },
+        isRead: false,
+        createdAt: serverTimestamp()
+      });
+      
+      toast({
+        title: "Message Sent!",
+        description: "Thank you for your message! We'll get back to you soon."
+      });
+      
+      // Reset form
       setFormData({
         name: '',
         email: '',
@@ -86,7 +115,15 @@ export default function Contact() {
         subject: '',
         message: ''
       });
-    }, 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {

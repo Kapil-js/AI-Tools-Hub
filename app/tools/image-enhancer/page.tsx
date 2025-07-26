@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Upload, Download, ImageIcon, Zap, Settings, Copy } from 'lucide-react';
 import { downloadFile, copyToClipboard } from '@/lib/utils-client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function ImageEnhancer() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -17,6 +19,8 @@ export default function ImageEnhancer() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
   const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const { user } = useAuth();
+  const router = useRouter();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -53,6 +57,11 @@ export default function ImageEnhancer() {
   
   // Function to download the enhanced image
   const downloadEnhancedImage = () => {
+    if (!user) {
+      router.push(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    
     if (!enhancedImage) return;
     
     // For demo purposes, we'll use the original file type if available

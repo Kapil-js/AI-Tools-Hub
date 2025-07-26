@@ -10,8 +10,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Instagram, Sparkles, Copy, RefreshCw, Hash } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function InstagramCaption() {
+  const { user } = useAuth();
+  const router = useRouter();
+  
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState('casual');
   const [length, setLength] = useState('medium');
@@ -37,7 +42,12 @@ export default function InstagramCaption() {
   };
 
   const copyToClipboard = (text: string) => {
+    if (!user) {
+      router.push(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
     navigator.clipboard.writeText(text);
+    alert('Caption copied to clipboard!');
   };
 
   const getToneDescription = (selectedTone: string) => {

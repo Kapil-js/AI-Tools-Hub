@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -35,6 +35,8 @@ export function LoginForm({ onSwitchToSignup, onSwitchToForgotPassword }: LoginF
   const { signIn, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
 
   const {
     register,
@@ -54,7 +56,7 @@ export function LoginForm({ onSwitchToSignup, onSwitchToForgotPassword }: LoginF
         title: 'Success!',
         description: 'You have been logged in successfully.',
       });
-      router.push('/dashboard');
+      router.push(redirectTo);
     } catch (error: any) {
       setError(getFirebaseErrorMessage(error.code));
     } finally {
@@ -72,7 +74,7 @@ export function LoginForm({ onSwitchToSignup, onSwitchToForgotPassword }: LoginF
         title: 'Success!',
         description: 'You have been logged in with Google successfully.',
       });
-      router.push('/dashboard');
+      router.push(redirectTo);
     } catch (error: any) {
       setError(getFirebaseErrorMessage(error.code));
     } finally {

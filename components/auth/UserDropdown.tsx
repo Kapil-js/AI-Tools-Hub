@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { User, Settings, LogOut, Activity } from 'lucide-react';
+import { User, Settings, LogOut, Activity, Lock } from 'lucide-react';
 
 export function UserDropdown() {
   const { user, logout } = useAuth();
@@ -70,17 +70,21 @@ export function UserDropdown() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+        <DropdownMenuItem onClick={() => router.push('/profile')}>
           <User className="mr-2 h-4 w-4" />
-          <span>Dashboard</span>
+          <span>My Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push('/dashboard/activity')}>
+        <DropdownMenuItem onClick={() => router.push('/profile/activity')}>
           <Activity className="mr-2 h-4 w-4" />
           <span>Activity</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
+        <DropdownMenuItem onClick={() => router.push('/profile/settings')}>
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push('/profile/password')}>
+          <Lock className="mr-2 h-4 w-4" />
+          <span>Change Password</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>

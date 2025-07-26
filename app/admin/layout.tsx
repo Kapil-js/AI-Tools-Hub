@@ -6,6 +6,17 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AdminProvider } from "@/contexts/AdminContext";
+import { collection, query, where, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   LayoutDashboard,
   Users,
@@ -43,6 +54,8 @@ export default function AdminLayout({
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [adminUser, setAdminUser] = useState({
     name: "Admin User",
     email: "admin@aitoolshub.com",
@@ -79,6 +92,54 @@ export default function AdminLayout({
     }
   }, [pathname, router]);
 
+  // Real-time notifications listener
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const notificationsRef = collection(db, 'admin_notifications');
+    const q = query(notificationsRef, where('isRead', '==', false));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notificationData: any[] = [];
+      snapshot.forEach((doc) => {
+        const data = { id: doc.id, ...doc.data() };
+        notificationData.push(data);
+      });
+      setNotifications(notificationData);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isAuthenticated]);
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      await updateDoc(doc(db, 'admin_notifications', notificationId), {
+        isRead: true
+      });
+    } catch (error) {
+      // Error marking notification as read
+    }
+  };
+
+  const formatNotificationTime = (timestamp: any) => {
+    if (!timestamp) return 'Just now';
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const minutes = Math.floor(diff / 60000);
+      if (minutes < 1) return 'Just now';
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      return date.toLocaleDateString();
+    } catch {
+      return 'Just now';
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("admin_token");
     router.push("/admin/login");
@@ -97,7 +158,8 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <AdminProvider>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -228,12 +290,56 @@ export default function AdminLayout({
 
             <div className="flex items-center space-x-4">
               {/* Notifications */}
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="w-5 h-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500">
-                  3
-                </Badge>
-              </Button>
+              <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="relative">
+                    <Bell className="w-5 h-5" />
+                    {notifications.length > 0 && (
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500">
+                        {notifications.length > 9 ? '9+' : notifications.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel>Notifications ({notifications.length})</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No new notifications
+                    </div>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.slice(0, 5).map((notification) => (
+                        <DropdownMenuItem
+                          key={notification.id}
+                          className="flex flex-col items-start p-4 cursor-pointer"
+                          onClick={() => {
+                            markNotificationAsRead(notification.id);
+                            if (notification.type === 'contact_form') {
+                              router.push('/admin/contact-messages');
+                            }
+                            setShowNotifications(false);
+                          }}
+                        >
+                          <div className="font-medium text-sm">{notification.title}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {notification.message}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {formatNotificationTime(notification.createdAt)}
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                      {notifications.length > 5 && (
+                        <DropdownMenuItem className="text-center text-sm text-muted-foreground">
+                          +{notifications.length - 5} more notifications
+                        </DropdownMenuItem>
+                      )}
+                    </div>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Quick access to main site */}
               <Link href="/">
@@ -249,5 +355,6 @@ export default function AdminLayout({
         <main className="p-6">{children}</main>
       </div>
     </div>
+    </AdminProvider>
   );
 }

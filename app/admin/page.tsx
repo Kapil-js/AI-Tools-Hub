@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -17,6 +17,8 @@ import {
   ArrowDown
 } from 'lucide-react';
 import Link from 'next/link';
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface StatCardProps {
   title: string;
@@ -64,17 +66,76 @@ function StatCard({ title, value, change, changeLabel, icon: Icon, loading }: St
 }
 
 export default function AdminDashboard() {
-  const [loading, setLoading] = useState(false);
-  const [stats] = useState({
-    totalUsers: 1247,
-    activeUsers: 892,
-    totalPosts: 45,
-    totalTools: 12,
-    newUsersToday: 23,
-    premiumUsers: 156,
-    totalViews: 15420,
-    totalLikes: 2341
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalPosts: 0,
+    totalTools: 0,
+    newUsersToday: 0,
+    premiumUsers: 0,
+    totalViews: 0,
+    totalLikes: 0
   });
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch users
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Fetch blog posts
+      const postsSnapshot = await getDocs(collection(db, 'blog_posts'));
+      const posts = postsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Fetch AI tools
+      const toolsSnapshot = await getDocs(collection(db, 'ai_tools'));
+      const tools = toolsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Calculate stats
+      const totalUsers = users.length;
+      const activeUsers = users.filter((user: any) => user.isActive !== false).length;
+      const premiumUsers = users.filter((user: any) => user.isPremium === true).length;
+      
+      const totalPosts = posts.length;
+      const publishedPosts = posts.filter((post: any) => post.status === 'published');
+      const totalViews = publishedPosts.reduce((sum: number, post: any) => sum + (post.views || 0), 0);
+      const totalLikes = publishedPosts.reduce((sum: number, post: any) => sum + (post.likes || 0), 0);
+      
+      const totalTools = tools.length;
+      
+      // Calculate new users today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const newUsersToday = users.filter((user: any) => {
+        if (!user.createdAt) return false;
+        const userDate = user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
+        return userDate >= today;
+      }).length;
+      
+      setStats({
+        totalUsers,
+        activeUsers,
+        totalPosts,
+        totalTools,
+        newUsersToday,
+        premiumUsers,
+        totalViews,
+        totalLikes
+      });
+      
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
 
   const quickActions = [
     {

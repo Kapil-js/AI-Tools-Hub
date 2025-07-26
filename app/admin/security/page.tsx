@@ -1,386 +1,542 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Shield, AlertTriangle, CheckCircle, Lock, Eye, RefreshCw, Settings } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { 
+  Shield, 
+  AlertTriangle, 
+  CheckCircle, 
+  Lock,
+  Eye,
+  Ban,
+  Activity,
+  Globe,
+  Key,
+  RefreshCw,
+  Download
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-// Mock security events
-const securityEvents = [
-  {
-    id: 1,
-    type: 'failed_login',
-    severity: 'medium',
-    description: 'Multiple failed login attempts',
-    ip: '192.168.1.100',
-    location: 'New York, US',
-    timestamp: '2024-01-20T10:30:00Z',
-    status: 'blocked'
-  },
-  {
-    id: 2,
-    type: 'suspicious_activity',
-    severity: 'high',
-    description: 'Unusual API usage pattern detected',
-    ip: '203.45.67.89',
-    location: 'Unknown',
-    timestamp: '2024-01-20T09:15:00Z',
-    status: 'investigating'
-  },
-  {
-    id: 3,
-    type: 'admin_access',
-    severity: 'low',
-    description: 'Admin panel accessed from new device',
-    ip: '192.168.1.50',
-    location: 'San Francisco, US',
-    timestamp: '2024-01-20T08:45:00Z',
-    status: 'resolved'
-  },
-  {
-    id: 4,
-    type: 'data_export',
-    severity: 'medium',
-    description: 'Large data export request',
-    ip: '10.0.0.25',
-    location: 'Internal',
-    timestamp: '2024-01-19T16:20:00Z',
-    status: 'approved'
-  },
-];
+interface SecurityEvent {
+  id: string;
+  type: 'login_attempt' | 'failed_login' | 'password_reset' | 'suspicious_activity' | 'admin_access';
+  user: string;
+  ip: string;
+  location: string;
+  timestamp: string;
+  status: 'success' | 'failed' | 'blocked';
+  details: string;
+}
 
-// Security settings
-const securitySettings = [
-  {
-    id: 'two_factor',
-    name: 'Two-Factor Authentication',
-    description: 'Require 2FA for all admin accounts',
-    enabled: true
-  },
-  {
-    id: 'ip_whitelist',
-    name: 'IP Whitelisting',
-    description: 'Only allow access from approved IP addresses',
-    enabled: false
-  },
-  {
-    id: 'session_timeout',
-    name: 'Session Timeout',
-    description: 'Automatically log out inactive users',
-    enabled: true
-  },
-  {
-    id: 'login_monitoring',
-    name: 'Login Monitoring',
-    description: 'Monitor and alert on suspicious login patterns',
-    enabled: true
-  },
-  {
-    id: 'api_rate_limiting',
-    name: 'API Rate Limiting',
-    description: 'Limit API requests per user/IP',
-    enabled: true
-  },
-  {
-    id: 'data_encryption',
-    name: 'Data Encryption',
-    description: 'Encrypt sensitive data at rest',
-    enabled: true
-  },
-];
+interface SecuritySettings {
+  twoFactorEnabled: boolean;
+  passwordPolicy: {
+    minLength: number;
+    requireUppercase: boolean;
+    requireNumbers: boolean;
+    requireSymbols: boolean;
+  };
+  sessionTimeout: number;
+  maxLoginAttempts: number;
+  ipWhitelist: string[];
+  suspiciousActivityDetection: boolean;
+  emailNotifications: boolean;
+}
 
 export default function SecurityManagement() {
-  const [settings, setSettings] = useState(securitySettings);
-  const [events] = useState(securityEvents);
+  const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
+  const [settings, setSettings] = useState<SecuritySettings>({
+    twoFactorEnabled: true,
+    passwordPolicy: {
+      minLength: 8,
+      requireUppercase: true,
+      requireNumbers: true,
+      requireSymbols: true
+    },
+    sessionTimeout: 24,
+    maxLoginAttempts: 5,
+    ipWhitelist: [],
+    suspiciousActivityDetection: true,
+    emailNotifications: true
+  });
+  const [loading, setLoading] = useState(true);
+  const [newIp, setNewIp] = useState('');
+  const { toast } = useToast();
 
-  const getSeverityBadge = (severity: string) => {
-    switch (severity) {
-      case 'high':
-        return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">High</Badge>;
-      case 'medium':
-        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Medium</Badge>;
-      case 'low':
-        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Low</Badge>;
+  // Mock security events
+  const mockEvents: SecurityEvent[] = [
+    {
+      id: '1',
+      type: 'failed_login',
+      user: 'unknown@example.com',
+      ip: '192.168.1.100',
+      location: 'New York, US',
+      timestamp: '2024-01-21 10:30:00',
+      status: 'failed',
+      details: 'Invalid password attempt'
+    },
+    {
+      id: '2',
+      type: 'admin_access',
+      user: 'admin@aitoolshub.com',
+      ip: '192.168.1.50',
+      location: 'California, US',
+      timestamp: '2024-01-21 09:15:00',
+      status: 'success',
+      details: 'Admin panel access'
+    },
+    {
+      id: '3',
+      type: 'suspicious_activity',
+      user: 'user@example.com',
+      ip: '10.0.0.1',
+      location: 'Unknown',
+      timestamp: '2024-01-21 08:45:00',
+      status: 'blocked',
+      details: 'Multiple rapid requests detected'
+    },
+    {
+      id: '4',
+      type: 'password_reset',
+      user: 'user2@example.com',
+      ip: '192.168.1.75',
+      location: 'Texas, US',
+      timestamp: '2024-01-21 07:20:00',
+      status: 'success',
+      details: 'Password reset completed'
+    },
+    {
+      id: '5',
+      type: 'login_attempt',
+      user: 'user3@example.com',
+      ip: '192.168.1.80',
+      location: 'Florida, US',
+      timestamp: '2024-01-21 06:10:00',
+      status: 'success',
+      details: 'Successful login'
+    }
+  ];
+
+  useEffect(() => {
+    // Simulate loading
+    setTimeout(() => {
+      setSecurityEvents(mockEvents);
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+  const updateSetting = (path: string, value: any) => {
+    setSettings(prev => {
+      const keys = path.split('.');
+      const newSettings = { ...prev };
+      let current: any = newSettings;
+      
+      for (let i = 0; i < keys.length - 1; i++) {
+        current[keys[i]] = { ...current[keys[i]] };
+        current = current[keys[i]];
+      }
+      
+      current[keys[keys.length - 1]] = value;
+      return newSettings;
+    });
+  };
+
+  const saveSettings = () => {
+    toast({
+      title: "Settings Saved",
+      description: "Security settings have been updated successfully",
+    });
+  };
+
+  const addIpToWhitelist = () => {
+    if (newIp && !settings.ipWhitelist.includes(newIp)) {
+      updateSetting('ipWhitelist', [...settings.ipWhitelist, newIp]);
+      setNewIp('');
+      toast({
+        title: "IP Added",
+        description: `${newIp} has been added to the whitelist`,
+      });
+    }
+  };
+
+  const removeIpFromWhitelist = (ip: string) => {
+    updateSetting('ipWhitelist', settings.ipWhitelist.filter(item => item !== ip));
+    toast({
+      title: "IP Removed",
+      description: `${ip} has been removed from the whitelist`,
+    });
+  };
+
+  const getEventIcon = (type: string) => {
+    switch (type) {
+      case 'failed_login':
+        return <Ban className="w-4 h-4 text-red-600" />;
+      case 'admin_access':
+        return <Shield className="w-4 h-4 text-blue-600" />;
+      case 'suspicious_activity':
+        return <AlertTriangle className="w-4 h-4 text-yellow-600" />;
+      case 'password_reset':
+        return <Key className="w-4 h-4 text-green-600" />;
+      case 'login_attempt':
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
       default:
-        return <Badge variant="secondary">{severity}</Badge>;
+        return <Activity className="w-4 h-4 text-gray-600" />;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'success':
+        return <Badge className="bg-green-500">Success</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Failed</Badge>;
       case 'blocked':
-        return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Blocked</Badge>;
-      case 'investigating':
-        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Investigating</Badge>;
-      case 'resolved':
-        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Resolved</Badge>;
-      case 'approved':
-        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Approved</Badge>;
+        return <Badge className="bg-yellow-500">Blocked</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'failed_login':
-        return <Lock className="w-4 h-4 text-red-500" />;
-      case 'suspicious_activity':
-        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
-      case 'admin_access':
-        return <Shield className="w-4 h-4 text-blue-500" />;
-      case 'data_export':
-        return <Eye className="w-4 h-4 text-green-500" />;
-      default:
-        return <Shield className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const toggleSetting = (settingId: string) => {
-    setSettings(prev => prev.map(setting => 
-      setting.id === settingId ? { ...setting, enabled: !setting.enabled } : setting
-    ));
+  const exportSecurityLog = () => {
+    const csvContent = [
+      ['Timestamp', 'Type', 'User', 'IP', 'Location', 'Status', 'Details'],
+      ...securityEvents.map(event => [
+        event.timestamp,
+        event.type,
+        event.user,
+        event.ip,
+        event.location,
+        event.status,
+        event.details
+      ])
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'security-log.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Security Management</h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            Monitor security events, manage settings, and protect your platform
+          <h1 className="text-3xl font-bold tracking-tight">Security Management</h1>
+          <p className="text-muted-foreground">
+            Monitor security events and configure security settings
           </p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+          <Button variant="outline" onClick={exportSecurityLog}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Log
           </Button>
-          <Button className="bg-gradient-to-r from-purple-600 to-blue-600">
-            <Settings className="w-4 h-4 mr-2" />
-            Security Audit
+          <Button onClick={saveSettings}>
+            <Shield className="w-4 h-4 mr-2" />
+            Save Settings
           </Button>
         </div>
       </div>
 
-      {/* Security Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Security Score</p>
-                <p className="text-2xl font-bold text-green-600">95%</p>
-              </div>
-              <Shield className="w-8 h-8 text-green-500" />
+      {/* Security Overview */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Security Status</CardTitle>
+            <Shield className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <span className="text-sm font-medium">Secure</span>
             </div>
           </CardContent>
         </Card>
-
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Threats</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {events.filter(event => event.status === 'investigating').length}
-                </p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-yellow-500" />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Failed Logins</CardTitle>
+            <Ban className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {securityEvents.filter(e => e.status === 'failed').length}
             </div>
           </CardContent>
         </Card>
-
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Blocked Events</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {events.filter(event => event.status === 'blocked').length}
-                </p>
-              </div>
-              <Lock className="w-8 h-8 text-red-500" />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Blocked IPs</CardTitle>
+            <Globe className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {securityEvents.filter(e => e.status === 'blocked').length}
             </div>
           </CardContent>
         </Card>
-
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Security Settings</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {settings.filter(setting => setting.enabled).length}/{settings.length}
-                </p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-blue-500" />
-            </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">24</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Security Events */}
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-          <CardHeader>
-            <CardTitle>Recent Security Events</CardTitle>
-            <CardDescription>
-              Latest security alerts and incidents
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {events.map((event) => (
-                <div key={event.id} className="flex items-start space-x-3 p-3 border rounded-lg dark:border-slate-700">
-                  <div className="mt-1">
-                    {getTypeIcon(event.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-slate-900 dark:text-white">
-                        {event.description}
-                      </p>
-                      {getSeverityBadge(event.severity)}
-                    </div>
-                    <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      <p>IP: {event.ip} • Location: {event.location}</p>
-                      <p>{formatDate(event.timestamp)}</p>
-                    </div>
-                    <div className="mt-2">
-                      {getStatusBadge(event.status)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Security Settings */}
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
+        <Card>
           <CardHeader>
-            <CardTitle>Security Settings</CardTitle>
+            <CardTitle className="flex items-center">
+              <Lock className="w-5 h-5 mr-2" />
+              Security Settings
+            </CardTitle>
             <CardDescription>
-              Configure security policies and protections
+              Configure security policies and authentication
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {settings.map((setting) => (
-                <div key={setting.id} className="flex items-center justify-between p-3 border rounded-lg dark:border-slate-700">
-                  <div className="flex-1">
-                    <p className="font-medium text-slate-900 dark:text-white">
-                      {setting.name}
-                    </p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {setting.description}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={setting.enabled}
-                    onCheckedChange={() => toggleSetting(setting.id)}
-                  />
-                </div>
-              ))}
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Two-Factor Authentication</Label>
+                <p className="text-sm text-muted-foreground">
+                  Require 2FA for admin accounts
+                </p>
+              </div>
+              <Switch
+                checked={settings.twoFactorEnabled}
+                onCheckedChange={(checked) => updateSetting('twoFactorEnabled', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Suspicious Activity Detection</Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically detect and block suspicious activity
+                </p>
+              </div>
+              <Switch
+                checked={settings.suspiciousActivityDetection}
+                onCheckedChange={(checked) => updateSetting('suspiciousActivityDetection', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Email Notifications</Label>
+                <p className="text-sm text-muted-foreground">
+                  Send security alerts via email
+                </p>
+              </div>
+              <Switch
+                checked={settings.emailNotifications}
+                onCheckedChange={(checked) => updateSetting('emailNotifications', checked)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Session Timeout (hours)</Label>
+                <Input
+                  type="number"
+                  value={settings.sessionTimeout}
+                  onChange={(e) => updateSetting('sessionTimeout', parseInt(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label>Max Login Attempts</Label>
+                <Input
+                  type="number"
+                  value={settings.maxLoginAttempts}
+                  onChange={(e) => updateSetting('maxLoginAttempts', parseInt(e.target.value))}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Password Policy */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Key className="w-5 h-5 mr-2" />
+              Password Policy
+            </CardTitle>
+            <CardDescription>
+              Configure password requirements
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Minimum Length</Label>
+              <Input
+                type="number"
+                value={settings.passwordPolicy.minLength}
+                onChange={(e) => updateSetting('passwordPolicy.minLength', parseInt(e.target.value))}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Require Uppercase Letters</Label>
+                <Switch
+                  checked={settings.passwordPolicy.requireUppercase}
+                  onCheckedChange={(checked) => updateSetting('passwordPolicy.requireUppercase', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label>Require Numbers</Label>
+                <Switch
+                  checked={settings.passwordPolicy.requireNumbers}
+                  onCheckedChange={(checked) => updateSetting('passwordPolicy.requireNumbers', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label>Require Symbols</Label>
+                <Switch
+                  checked={settings.passwordPolicy.requireSymbols}
+                  onCheckedChange={(checked) => updateSetting('passwordPolicy.requireSymbols', checked)}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Security Events Table */}
-      <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
+      {/* IP Whitelist */}
+      <Card>
         <CardHeader>
-          <CardTitle>All Security Events</CardTitle>
+          <CardTitle className="flex items-center">
+            <Globe className="w-5 h-5 mr-2" />
+            IP Whitelist
+          </CardTitle>
           <CardDescription>
-            Complete log of security events and incidents
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Severity</TableHead>
-                <TableHead>IP Address</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {events.map((event) => (
-                <TableRow key={event.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      {getTypeIcon(event.type)}
-                      <span className="capitalize font-medium">
-                        {event.type.replace('_', ' ')}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{event.description}</TableCell>
-                  <TableCell>{getSeverityBadge(event.severity)}</TableCell>
-                  <TableCell className="font-mono text-sm">{event.ip}</TableCell>
-                  <TableCell>{event.location}</TableCell>
-                  <TableCell>{formatDate(event.timestamp)}</TableCell>
-                  <TableCell>{getStatusBadge(event.status)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Security Recommendations */}
-      <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-        <CardHeader>
-          <CardTitle>Security Recommendations</CardTitle>
-          <CardDescription>
-            Suggested actions to improve platform security
+            Manage allowed IP addresses for admin access
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-start space-x-3 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-blue-900 dark:text-blue-100">Enable IP Whitelisting</p>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Consider enabling IP whitelisting for admin accounts to add an extra layer of security.
-                </p>
-              </div>
+            <div className="flex space-x-2">
+              <Input
+                placeholder="Enter IP address (e.g., 192.168.1.1)"
+                value={newIp}
+                onChange={(e) => setNewIp(e.target.value)}
+              />
+              <Button onClick={addIpToWhitelist}>Add IP</Button>
             </div>
 
-            <div className="flex items-start space-x-3 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-yellow-900 dark:text-yellow-100">Review Failed Login Attempts</p>
-                <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                  Multiple failed login attempts detected. Consider implementing account lockout policies.
-                </p>
+            {settings.ipWhitelist.length > 0 ? (
+              <div className="space-y-2">
+                {settings.ipWhitelist.map((ip, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 border rounded">
+                    <span className="font-mono text-sm">{ip}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeIpFromWhitelist(ip)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
               </div>
-            </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No IP addresses in whitelist</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-            <div className="flex items-start space-x-3 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg">
-              <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-green-900 dark:text-green-100">Security Score: Excellent</p>
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  Your platform maintains a high security score. Keep up the good work!
-                </p>
-              </div>
+      {/* Security Events */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Activity className="w-5 h-5 mr-2" />
+              Security Events
             </div>
+            <Button variant="outline" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+          </CardTitle>
+          <CardDescription>
+            Recent security events and login attempts
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Event</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>IP Address</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><div className="h-4 bg-gray-200 rounded animate-pulse w-32" /></TableCell>
+                      <TableCell><div className="h-4 bg-gray-200 rounded animate-pulse w-24" /></TableCell>
+                      <TableCell><div className="h-4 bg-gray-200 rounded animate-pulse w-20" /></TableCell>
+                      <TableCell><div className="h-4 bg-gray-200 rounded animate-pulse w-16" /></TableCell>
+                      <TableCell><div className="h-6 bg-gray-200 rounded animate-pulse w-16" /></TableCell>
+                      <TableCell><div className="h-4 bg-gray-200 rounded animate-pulse w-20" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  securityEvents.map((event) => (
+                    <TableRow key={event.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          {getEventIcon(event.type)}
+                          <div>
+                            <div className="font-medium capitalize">
+                              {event.type.replace('_', ' ')}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {event.details}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">{event.user}</TableCell>
+                      <TableCell className="font-mono text-sm">{event.ip}</TableCell>
+                      <TableCell>{event.location}</TableCell>
+                      <TableCell>{getStatusBadge(event.status)}</TableCell>
+                      <TableCell className="text-sm">{event.timestamp}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>

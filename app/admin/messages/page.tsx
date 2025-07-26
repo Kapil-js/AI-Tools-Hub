@@ -1,387 +1,548 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { 
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { MessageSquare, Mail, Reply, Trash2, Search, Filter, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { 
+  MessageSquare, 
+  Search, 
+  Filter, 
+  MoreHorizontal,
+  Reply,
+  Trash2,
+  Eye,
+  Mail,
+  User,
+  Calendar,
+  Send,
+  X
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
-// Mock messages data
-const mockMessages = [
-  {
-    id: 1,
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    subject: 'Issue with PDF Compressor',
-    message: 'The PDF compressor is not working properly. It keeps showing an error when I try to upload files.',
-    date: '2024-01-20T10:30:00Z',
-    status: 'unread',
-    priority: 'high',
-    type: 'support'
-  },
-  {
-    id: 2,
-    name: 'Jane Smith',
-    email: 'jane.smith@example.com',
-    subject: 'Feature Request',
-    message: 'Would it be possible to add batch processing to the image enhancer tool?',
-    date: '2024-01-19T15:45:00Z',
-    status: 'replied',
-    priority: 'medium',
-    type: 'feature'
-  },
-  {
-    id: 3,
-    name: 'Mike Johnson',
-    email: 'mike.johnson@example.com',
-    subject: 'Billing Question',
-    message: 'I was charged twice for my Pro subscription this month. Can you please check?',
-    date: '2024-01-18T09:15:00Z',
-    status: 'resolved',
-    priority: 'high',
-    type: 'billing'
-  },
-  {
-    id: 4,
-    name: 'Sarah Wilson',
-    email: 'sarah.wilson@example.com',
-    subject: 'General Inquiry',
-    message: 'How can I upgrade my plan to Business? I need access to the API.',
-    date: '2024-01-17T14:20:00Z',
-    status: 'unread',
-    priority: 'low',
-    type: 'general'
-  },
-];
+interface Message {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: 'unread' | 'read' | 'replied';
+  priority: 'low' | 'medium' | 'high';
+  createdAt: any;
+  repliedAt?: any;
+  reply?: string;
+}
 
 export default function MessagesManagement() {
-  const [messages, setMessages] = useState(mockMessages);
-  const [selectedMessage, setSelectedMessage] = useState<any>(null);
-  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'unread' | 'read' | 'replied'>('all');
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [replying, setReplying] = useState(false);
+  const { toast } = useToast();
 
-  // Filter messages
+  // Fetch messages from Firebase
+  const fetchMessages = async () => {
+    try {
+      setLoading(true);
+      const messagesRef = collection(db, 'contact_messages');
+      const q = query(messagesRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const messagesData: Message[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        messagesData.push({
+          id: doc.id,
+          name: data.name || 'Unknown',
+          email: data.email || '',
+          subject: data.subject || 'No Subject',
+          message: data.message || '',
+          status: data.status || 'unread',
+          priority: data.priority || 'medium',
+          createdAt: data.createdAt,
+          repliedAt: data.repliedAt,
+          reply: data.reply
+        });
+      });
+      
+      setMessages(messagesData);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch messages",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMessages();
+  }, []);
+
   const filteredMessages = messages.filter(message => {
-    const matchesSearch = message.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         message.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         message.subject.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || message.status === statusFilter;
+    const matchesSearch = message.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         message.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         message.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         message.message.toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesSearch && matchesStatus;
+    const matchesFilter = filterStatus === 'all' || message.status === filterStatus;
+    
+    return matchesSearch && matchesFilter;
   });
+
+  const handleStatusChange = async (messageId: string, newStatus: 'unread' | 'read' | 'replied') => {
+    try {
+      const messageRef = doc(db, 'contact_messages', messageId);
+      await updateDoc(messageRef, {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+      
+      toast({
+        title: "Success",
+        description: `Message marked as ${newStatus}`,
+      });
+      
+      fetchMessages();
+    } catch (error) {
+      console.error('Error updating message status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update message status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'contact_messages', messageId));
+      toast({
+        title: "Success",
+        description: "Message deleted successfully",
+      });
+      fetchMessages();
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete message",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleReply = async () => {
+    if (!selectedMessage || !replyText.trim()) {
+      toast({
+        title: "Error",
+        description: "Reply text is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setReplying(true);
+      
+      // Update message with reply
+      const messageRef = doc(db, 'contact_messages', selectedMessage.id);
+      await updateDoc(messageRef, {
+        status: 'replied',
+        reply: replyText,
+        repliedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      // In a real application, you would send an email here
+      // For now, we'll just show a success message
+      
+      toast({
+        title: "Success",
+        description: "Reply sent successfully",
+      });
+      
+      setSelectedMessage(null);
+      setReplyText('');
+      fetchMessages();
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send reply",
+        variant: "destructive"
+      });
+    } finally {
+      setReplying(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'unread':
-        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Unread</Badge>;
+        return <Badge className="bg-red-500">Unread</Badge>;
+      case 'read':
+        return <Badge className="bg-yellow-500">Read</Badge>;
       case 'replied':
-        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Replied</Badge>;
-      case 'resolved':
-        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Resolved</Badge>;
+        return <Badge className="bg-green-500">Replied</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'high':
-        return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">High</Badge>;
+        return <Badge variant="destructive">High</Badge>;
       case 'medium':
-        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Medium</Badge>;
+        return <Badge variant="outline">Medium</Badge>;
       case 'low':
-        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Low</Badge>;
+        return <Badge variant="secondary">Low</Badge>;
       default:
-        return <Badge variant="secondary">{priority}</Badge>;
+        return <Badge variant="outline">{priority}</Badge>;
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'unread':
-        return <AlertCircle className="w-4 h-4 text-blue-500" />;
-      case 'replied':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'resolved':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      default:
-        return <MessageSquare className="w-4 h-4 text-gray-500" />;
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    } catch {
+      return 'N/A';
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const handleReply = () => {
-    // Implement reply logic here
-    console.log('Replying to message:', selectedMessage?.id, 'with:', replyText);
-    setReplyText('');
-    setIsMessageDialogOpen(false);
-  };
-
-  const handleMarkAsResolved = (messageId: number) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, status: 'resolved' } : msg
-    ));
-  };
-
-  const handleDelete = (messageId: number) => {
-    setMessages(prev => prev.filter(msg => msg.id !== messageId));
   };
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Messages</h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            Manage user communications and support requests
+          <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
+          <p className="text-muted-foreground">
+            Manage contact messages and support requests
           </p>
         </div>
-        <Button className="bg-gradient-to-r from-purple-600 to-blue-600">
-          <Mail className="w-4 h-4 mr-2" />
-          Compose Message
+        <Button onClick={fetchMessages}>
+          <MessageSquare className="w-4 h-4 mr-2" />
+          Refresh
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Messages</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">{messages.length}</p>
-              </div>
-              <MessageSquare className="w-8 h-8 text-purple-500" />
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{messages.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Unread</CardTitle>
+            <Mail className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {messages.filter(m => m.status === 'unread').length}
             </div>
           </CardContent>
         </Card>
-
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Unread</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {messages.filter(msg => msg.status === 'unread').length}
-                </p>
-              </div>
-              <AlertCircle className="w-8 h-8 text-blue-500" />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Replied</CardTitle>
+            <Reply className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {messages.filter(m => m.status === 'replied').length}
             </div>
           </CardContent>
         </Card>
-
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Awaiting Reply</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {messages.filter(msg => msg.status === 'replied').length}
-                </p>
-              </div>
-              <Clock className="w-8 h-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Resolved</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {messages.filter(msg => msg.status === 'resolved').length}
-                </p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-500" />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">High Priority</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {messages.filter(m => m.priority === 'high').length}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search and Filters */}
-      <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
+      {/* Messages Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Contact Messages ({filteredMessages.length})</CardTitle>
+          <CardDescription>
+            Manage customer inquiries and support requests
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4 mb-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                className="pl-10"
                 placeholder="Search messages..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
-              <select 
-                value={statusFilter} 
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-              >
-                <option value="all">All Status</option>
-                <option value="unread">Unread</option>
-                <option value="replied">Replied</option>
-                <option value="resolved">Resolved</option>
-              </select>
-              <Button variant="outline" size="sm">
-                <Filter className="w-4 h-4 mr-2" />
-                More Filters
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Status: {filterStatus}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setFilterStatus('all')}>
+                  All Messages
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus('unread')}>
+                  Unread Only
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus('read')}>
+                  Read Only
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus('replied')}>
+                  Replied Only
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>From</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="h-4 bg-gray-200 rounded animate-pulse w-32" />
+                          <div className="h-3 bg-gray-100 rounded animate-pulse w-24" />
+                        </div>
+                      </TableCell>
+                      <TableCell><div className="h-4 bg-gray-200 rounded animate-pulse w-48" /></TableCell>
+                      <TableCell><div className="h-6 bg-gray-200 rounded animate-pulse w-16" /></TableCell>
+                      <TableCell><div className="h-6 bg-gray-200 rounded animate-pulse w-16" /></TableCell>
+                      <TableCell><div className="h-4 bg-gray-200 rounded animate-pulse w-20" /></TableCell>
+                      <TableCell><div className="h-8 bg-gray-200 rounded animate-pulse w-8" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : filteredMessages.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="text-muted-foreground">
+                        {searchTerm || filterStatus !== 'all' ? 'No messages found matching your criteria' : 'No messages found'}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredMessages.map((message) => (
+                    <TableRow key={message.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                            {message.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-medium">{message.name}</div>
+                            <div className="text-sm text-muted-foreground">{message.email}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-xs">
+                          <div className="font-medium truncate">{message.subject}</div>
+                          <div className="text-sm text-muted-foreground truncate">
+                            {message.message.substring(0, 60)}...
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(message.status)}</TableCell>
+                      <TableCell>{getPriorityBadge(message.priority)}</TableCell>
+                      <TableCell className="text-sm">
+                        {formatDate(message.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => setSelectedMessage(message)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              View & Reply
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>Status</DropdownMenuLabel>
+                            {message.status !== 'read' && (
+                              <DropdownMenuItem onClick={() => handleStatusChange(message.id, 'read')}>
+                                Mark as Read
+                              </DropdownMenuItem>
+                            )}
+                            {message.status !== 'unread' && (
+                              <DropdownMenuItem onClick={() => handleStatusChange(message.id, 'unread')}>
+                                Mark as Unread
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteMessage(message.id)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
 
-      {/* Messages Table */}
-      <Card className="shadow-lg border-0 bg-white dark:bg-slate-800">
-        <CardHeader>
-          <CardTitle>Messages ({filteredMessages.length})</CardTitle>
-          <CardDescription>
-            User communications and support requests
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>From</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMessages.map((message) => (
-                <TableRow key={message.id} className={message.status === 'unread' ? 'bg-blue-50 dark:bg-blue-900/10' : ''}>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      {getStatusIcon(message.status)}
-                      <div>
-                        <p className={`font-medium ${message.status === 'unread' ? 'font-bold' : ''} text-slate-900 dark:text-white`}>
-                          {message.name}
-                        </p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">{message.email}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <p className={`${message.status === 'unread' ? 'font-bold' : ''} text-slate-900 dark:text-white`}>
-                      {message.subject}
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {message.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{getPriorityBadge(message.priority)}</TableCell>
-                  <TableCell>{getStatusBadge(message.status)}</TableCell>
-                  <TableCell>{formatDate(message.date)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedMessage(message);
-                          setIsMessageDialogOpen(true);
-                        }}
-                      >
-                        <Reply className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleMarkAsResolved(message.id)}
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(message.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Message Dialog */}
-      <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      {/* Message Detail Dialog */}
+      <Dialog open={!!selectedMessage} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedMessage(null);
+          setReplyText('');
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Message Details</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Message Details</span>
+              {selectedMessage && getStatusBadge(selectedMessage.status)}
+            </DialogTitle>
             <DialogDescription>
-              View and reply to user message
+              View message details and send a reply
             </DialogDescription>
           </DialogHeader>
+          
           {selectedMessage && (
-            <div className="space-y-6">
-              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-slate-900 dark:text-white">
-                    {selectedMessage.name}
-                  </h3>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {formatDate(selectedMessage.date)}
-                  </span>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>From</Label>
+                  <div className="font-medium">{selectedMessage.name}</div>
+                  <div className="text-sm text-muted-foreground">{selectedMessage.email}</div>
                 </div>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                  {selectedMessage.email}
-                </p>
-                <h4 className="font-medium text-slate-900 dark:text-white mb-2">
-                  Subject: {selectedMessage.subject}
-                </h4>
-                <p className="text-slate-700 dark:text-slate-300">
-                  {selectedMessage.message}
-                </p>
+                <div>
+                  <Label>Date</Label>
+                  <div className="text-sm">{formatDate(selectedMessage.createdAt)}</div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900 dark:text-white">
-                  Reply
-                </label>
+              <div>
+                <Label>Subject</Label>
+                <div className="font-medium">{selectedMessage.subject}</div>
+              </div>
+
+              <div>
+                <Label>Message</Label>
+                <div className="p-3 bg-gray-50 rounded-md whitespace-pre-wrap">
+                  {selectedMessage.message}
+                </div>
+              </div>
+
+              {selectedMessage.reply && (
+                <div>
+                  <Label>Previous Reply</Label>
+                  <div className="p-3 bg-blue-50 rounded-md whitespace-pre-wrap">
+                    {selectedMessage.reply}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Replied on {formatDate(selectedMessage.repliedAt)}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="reply">Reply</Label>
                 <Textarea
-                  placeholder="Type your reply..."
+                  id="reply"
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  rows={4}
+                  placeholder="Type your reply here..."
+                  rows={6}
                 />
               </div>
 
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsMessageDialogOpen(false)}>
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" onClick={() => {
+                  setSelectedMessage(null);
+                  setReplyText('');
+                }}>
+                  <X className="w-4 h-4 mr-2" />
                   Cancel
                 </Button>
-                <Button onClick={handleReply}>
-                  <Reply className="w-4 h-4 mr-2" />
-                  Send Reply
+                <Button onClick={handleReply} disabled={replying || !replyText.trim()}>
+                  <Send className="w-4 h-4 mr-2" />
+                  {replying ? 'Sending...' : 'Send Reply'}
                 </Button>
               </div>
             </div>

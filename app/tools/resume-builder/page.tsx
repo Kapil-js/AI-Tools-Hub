@@ -1,34 +1,56 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, User, Download, Plus, Trash2, Briefcase, GraduationCap } from 'lucide-react';
-import { Navbar } from '@/components/navbar';
+import { useState } from "react";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  ArrowLeft,
+  User,
+  Download,
+  Plus,
+  Trash2,
+  Briefcase,
+  GraduationCap,
+} from "lucide-react";
+import { Navbar } from "@/components/navbar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
 
 export default function ResumeBuilder() {
+  const { user } = useAuth();
+  const router = useRouter();
+
   const [personalInfo, setPersonalInfo] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    location: '',
-    summary: ''
+    name: "",
+    email: "",
+    phone: "",
+    location: "",
+    summary: "",
   });
 
   const [experiences, setExperiences] = useState([
-    { company: '', position: '', duration: '', description: '' }
+    { company: "", position: "", duration: "", description: "" },
   ]);
 
   const [education, setEducation] = useState([
-    { school: '', degree: '', year: '', gpa: '' }
+    { school: "", degree: "", year: "", gpa: "" },
   ]);
 
   const addExperience = () => {
-    setExperiences([...experiences, { company: '', position: '', duration: '', description: '' }]);
+    setExperiences([
+      ...experiences,
+      { company: "", position: "", duration: "", description: "" },
+    ]);
   };
 
   const removeExperience = (index: number) => {
@@ -36,7 +58,7 @@ export default function ResumeBuilder() {
   };
 
   const addEducation = () => {
-    setEducation([...education, { school: '', degree: '', year: '', gpa: '' }]);
+    setEducation([...education, { school: "", degree: "", year: "", gpa: "" }]);
   };
 
   const removeEducation = (index: number) => {
@@ -55,7 +77,8 @@ export default function ResumeBuilder() {
               Professional Resume Builder
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Create a professional resume with AI-powered suggestions and modern templates
+              Create a professional resume with AI-powered suggestions and
+              modern templates
             </p>
           </div>
 
@@ -69,7 +92,9 @@ export default function ResumeBuilder() {
                     <User className="w-5 h-5 mr-2" />
                     Personal Information
                   </CardTitle>
-                  <CardDescription>Basic details about yourself</CardDescription>
+                  <CardDescription>
+                    Basic details about yourself
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -78,7 +103,12 @@ export default function ResumeBuilder() {
                       <Input
                         id="name"
                         value={personalInfo.name}
-                        onChange={(e) => setPersonalInfo({...personalInfo, name: e.target.value})}
+                        onChange={(e) =>
+                          setPersonalInfo({
+                            ...personalInfo,
+                            name: e.target.value,
+                          })
+                        }
                         placeholder="John Doe"
                       />
                     </div>
@@ -88,7 +118,12 @@ export default function ResumeBuilder() {
                         id="email"
                         type="email"
                         value={personalInfo.email}
-                        onChange={(e) => setPersonalInfo({...personalInfo, email: e.target.value})}
+                        onChange={(e) =>
+                          setPersonalInfo({
+                            ...personalInfo,
+                            email: e.target.value,
+                          })
+                        }
                         placeholder="john@example.com"
                       />
                     </div>
@@ -99,7 +134,12 @@ export default function ResumeBuilder() {
                       <Input
                         id="phone"
                         value={personalInfo.phone}
-                        onChange={(e) => setPersonalInfo({...personalInfo, phone: e.target.value})}
+                        onChange={(e) =>
+                          setPersonalInfo({
+                            ...personalInfo,
+                            phone: e.target.value,
+                          })
+                        }
                         placeholder="+1 (555) 123-4567"
                       />
                     </div>
@@ -108,7 +148,12 @@ export default function ResumeBuilder() {
                       <Input
                         id="location"
                         value={personalInfo.location}
-                        onChange={(e) => setPersonalInfo({...personalInfo, location: e.target.value})}
+                        onChange={(e) =>
+                          setPersonalInfo({
+                            ...personalInfo,
+                            location: e.target.value,
+                          })
+                        }
                         placeholder="New York, NY"
                       />
                     </div>
@@ -118,7 +163,12 @@ export default function ResumeBuilder() {
                     <Textarea
                       id="summary"
                       value={personalInfo.summary}
-                      onChange={(e) => setPersonalInfo({...personalInfo, summary: e.target.value})}
+                      onChange={(e) =>
+                        setPersonalInfo({
+                          ...personalInfo,
+                          summary: e.target.value,
+                        })
+                      }
                       placeholder="Brief overview of your experience and goals..."
                       rows={3}
                     />
@@ -139,7 +189,9 @@ export default function ResumeBuilder() {
                       Add
                     </Button>
                   </CardTitle>
-                  <CardDescription>Your professional experience</CardDescription>
+                  <CardDescription>
+                    Your professional experience
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {experiences.map((exp, index) => (
@@ -302,7 +354,17 @@ export default function ResumeBuilder() {
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     Resume Preview
-                    <Button className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700">
+                    <Button
+                      className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                      onClick={() => {
+                        if (!user) {
+                          router.push(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+                          return;
+                        }
+                        // Download functionality would go here
+                        alert("Resume download started!");
+                      }}
+                    >
                       <Download className="w-4 h-4 mr-2" />
                       Download PDF
                     </Button>
@@ -315,63 +377,94 @@ export default function ResumeBuilder() {
                       {/* Header */}
                       <div className="text-center border-b pb-4">
                         <h1 className="text-2xl font-bold text-slate-900">
-                          {personalInfo.name || 'Your Name'}
+                          {personalInfo.name || "Your Name"}
                         </h1>
                         <div className="text-sm text-slate-600 mt-2 space-y-1">
                           {personalInfo.email && <p>{personalInfo.email}</p>}
                           {personalInfo.phone && <p>{personalInfo.phone}</p>}
-                          {personalInfo.location && <p>{personalInfo.location}</p>}
+                          {personalInfo.location && (
+                            <p>{personalInfo.location}</p>
+                          )}
                         </div>
                       </div>
 
                       {/* Summary */}
                       {personalInfo.summary && (
                         <div>
-                          <h2 className="font-bold text-slate-900 mb-2">SUMMARY</h2>
-                          <p className="text-sm text-slate-700">{personalInfo.summary}</p>
+                          <h2 className="font-bold text-slate-900 mb-2">
+                            SUMMARY
+                          </h2>
+                          <p className="text-sm text-slate-700">
+                            {personalInfo.summary}
+                          </p>
                         </div>
                       )}
 
                       {/* Experience */}
-                      {experiences.some(exp => exp.company || exp.position) && (
+                      {experiences.some(
+                        (exp) => exp.company || exp.position
+                      ) && (
                         <div>
-                          <h2 className="font-bold text-slate-900 mb-3">EXPERIENCE</h2>
+                          <h2 className="font-bold text-slate-900 mb-3">
+                            EXPERIENCE
+                          </h2>
                           <div className="space-y-3">
-                            {experiences.filter(exp => exp.company || exp.position).map((exp, index) => (
-                              <div key={index}>
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <h3 className="font-semibold text-slate-900">{exp.position || 'Position'}</h3>
-                                    <p className="text-sm text-slate-600">{exp.company || 'Company'}</p>
+                            {experiences
+                              .filter((exp) => exp.company || exp.position)
+                              .map((exp, index) => (
+                                <div key={index}>
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <h3 className="font-semibold text-slate-900">
+                                        {exp.position || "Position"}
+                                      </h3>
+                                      <p className="text-sm text-slate-600">
+                                        {exp.company || "Company"}
+                                      </p>
+                                    </div>
+                                    <p className="text-sm text-slate-500">
+                                      {exp.duration}
+                                    </p>
                                   </div>
-                                  <p className="text-sm text-slate-500">{exp.duration}</p>
+                                  {exp.description && (
+                                    <p className="text-sm text-slate-700 mt-1">
+                                      {exp.description}
+                                    </p>
+                                  )}
                                 </div>
-                                {exp.description && (
-                                  <p className="text-sm text-slate-700 mt-1">{exp.description}</p>
-                                )}
-                              </div>
-                            ))}
+                              ))}
                           </div>
                         </div>
                       )}
 
                       {/* Education */}
-                      {education.some(edu => edu.school || edu.degree) && (
+                      {education.some((edu) => edu.school || edu.degree) && (
                         <div>
-                          <h2 className="font-bold text-slate-900 mb-3">EDUCATION</h2>
+                          <h2 className="font-bold text-slate-900 mb-3">
+                            EDUCATION
+                          </h2>
                           <div className="space-y-2">
-                            {education.filter(edu => edu.school || edu.degree).map((edu, index) => (
-                              <div key={index} className="flex justify-between items-start">
-                                <div>
-                                  <h3 className="font-semibold text-slate-900">{edu.degree || 'Degree'}</h3>
-                                  <p className="text-sm text-slate-600">{edu.school || 'School'}</p>
+                            {education
+                              .filter((edu) => edu.school || edu.degree)
+                              .map((edu, index) => (
+                                <div
+                                  key={index}
+                                  className="flex justify-between items-start"
+                                >
+                                  <div>
+                                    <h3 className="font-semibold text-slate-900">
+                                      {edu.degree || "Degree"}
+                                    </h3>
+                                    <p className="text-sm text-slate-600">
+                                      {edu.school || "School"}
+                                    </p>
+                                  </div>
+                                  <div className="text-right text-sm text-slate-500">
+                                    {edu.year && <p>{edu.year}</p>}
+                                    {edu.gpa && <p>GPA: {edu.gpa}</p>}
+                                  </div>
                                 </div>
-                                <div className="text-right text-sm text-slate-500">
-                                  {edu.year && <p>{edu.year}</p>}
-                                  {edu.gpa && <p>GPA: {edu.gpa}</p>}
-                                </div>
-                              </div>
-                            ))}
+                              ))}
                           </div>
                         </div>
                       )}
