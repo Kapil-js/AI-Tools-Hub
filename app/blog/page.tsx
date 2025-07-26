@@ -181,7 +181,7 @@ export default function BlogPage() {
               {post.likes}
             </span>
           </div>
-          <Link href={`/blog/${post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`}>
+          <Link href={`/blog/${post.title.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`}>
             <Button variant="ghost" size="sm" className="group-hover:bg-purple-50 dark:group-hover:bg-purple-900/20">
               Read More
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />

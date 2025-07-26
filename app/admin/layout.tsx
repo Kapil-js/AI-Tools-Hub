@@ -41,6 +41,7 @@ const adminNavItems = [
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { name: "Messages", href: "/admin/messages", icon: MessageSquare },
   { name: "Database", href: "/admin/database", icon: Database },
+
   { name: "Security", href: "/admin/security", icon: Shield },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];

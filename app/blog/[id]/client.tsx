@@ -1,217 +1,433 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import { Navbar } from "@/components/navbar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  Calendar,
-  Clock,
-  User,
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Navbar } from '@/components/navbar';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { 
   ArrowLeft,
+  Calendar, 
+  User, 
+  Eye,
+  Heart,
   Share2,
-  Bookmark,
-  ThumbsUp,
+  Clock,
   MessageCircle,
-  ArrowRight,
-  Copy,
-  Download,
-} from "lucide-react";
-import { copyToClipboard, downloadFile } from "@/lib/utils-client";
+  Send,
+  Bookmark,
+  BookmarkCheck
+} from 'lucide-react';
+import { doc, getDoc, updateDoc, increment, collection, addDoc, getDocs, query, where, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
-// This would typically come from a CMS or API
-const blogPost = {
-  id: 1,
-  title: "The Future of AI-Powered Content Creation",
-  excerpt:
-    "Explore how artificial intelligence is revolutionizing the way we create, edit, and optimize content across various industries.",
-  author: "Sarah Johnson",
-  date: "2024-01-15",
-  readTime: "8 min read",
-  category: "AI Technology",
-  image:
-    "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200",
-  content: `
-# The Future of AI-Powered Content Creation
+interface BlogPost {
+  id: string;
+  title: string;
+  content: string;
+  excerpt: string;
+  author: string;
+  imageUrl?: string;
+  tags: string[];
+  views: number;
+  likes: number;
+  likedBy?: string[];
+  bookmarkedBy?: string[];
+  metaDescription?: string;
+  createdAt: any;
+  publishedAt: any;
+}
 
-Artificial Intelligence has fundamentally transformed how we approach content creation, moving from simple automation to sophisticated creative assistance. As we stand at the threshold of 2024, the landscape of AI-powered content tools continues to evolve at an unprecedented pace.
+interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  content: string;
+  createdAt: any;
+}
 
-## The Current State of AI Content Tools
+export default function BlogPostPageClient() {
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [liked, setLiked] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const params = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const postId = params.id as string;
 
-Today's AI content creation tools have moved far beyond basic text generation. We're seeing sophisticated systems that can:
-
-- **Generate high-quality written content** across multiple formats and styles
-- **Create and enhance visual content** with remarkable precision
-- **Optimize content for specific audiences** and platforms
-- **Provide real-time editing suggestions** that improve clarity and engagement
-
-### Key Technologies Driving Innovation
-
-The advancement in AI content creation is powered by several breakthrough technologies:
-
-**Large Language Models (LLMs)**: These models, like GPT-4 and Claude, have revolutionized text generation by understanding context, tone, and style with human-like proficiency.
-
-**Computer Vision AI**: Advanced image processing algorithms can now enhance, modify, and generate visual content that rivals professional design work.
-
-**Multimodal AI**: The integration of text, image, and audio processing in single systems is creating more versatile content creation platforms.
-
-## Industry Applications
-
-### Marketing and Advertising
-
-AI tools are transforming marketing by enabling:
-- Personalized content at scale
-- A/B testing of multiple content variations
-- Real-time optimization based on audience response
-- Cross-platform content adaptation
-
-### Education and Training
-
-Educational content creation has been revolutionized through:
-- Adaptive learning materials that adjust to student needs
-- Automated quiz and assessment generation
-- Interactive content that responds to learning patterns
-- Multilingual content translation and localization
-
-### Entertainment and Media
-
-The entertainment industry leverages AI for:
-- Script writing assistance and story development
-- Video editing and post-production automation
-- Music composition and sound design
-- Character and world-building for games and films
-
-## Challenges and Considerations
-
-While AI-powered content creation offers tremendous opportunities, several challenges must be addressed:
-
-### Quality and Authenticity
-
-Maintaining human creativity and authentic voice while leveraging AI assistance requires careful balance. The best results come from human-AI collaboration rather than complete automation.
-
-### Ethical Considerations
-
-- **Attribution and originality**: Ensuring proper credit and avoiding plagiarism
-- **Bias mitigation**: Addressing inherent biases in training data
-- **Transparency**: Being clear about AI involvement in content creation
-
-### Technical Limitations
-
-Current AI systems still struggle with:
-- Long-form narrative consistency
-- Cultural nuance and context
-- Real-time fact-checking and accuracy
-- Creative breakthrough and innovation
-
-## Best Practices for AI Content Creation
-
-### 1. Define Clear Objectives
-
-Before using AI tools, establish:
-- Target audience and their preferences
-- Content goals and success metrics
-- Brand voice and style guidelines
-- Quality standards and review processes
-
-### 2. Choose the Right Tools
-
-Select AI tools based on:
-- Specific content type requirements
-- Integration capabilities with existing workflows
-- Customization and training options
-- Cost-effectiveness and scalability
-
-### 3. Maintain Human Oversight
-
-Implement processes for:
-- Content review and editing
-- Fact-checking and accuracy verification
-- Brand consistency maintenance
-- Legal and compliance review
-
-## The Road Ahead
-
-The future of AI-powered content creation promises even more exciting developments:
-
-### Emerging Trends
-
-**Hyper-Personalization**: AI will enable content that adapts in real-time to individual user preferences and behaviors.
-
-**Cross-Platform Optimization**: Single content pieces will automatically adapt for optimal performance across different platforms and formats.
-
-**Collaborative AI**: Multiple AI systems will work together to create more sophisticated and nuanced content.
-
-**Real-Time Content**: AI will generate and modify content in real-time based on current events, trends, and user interactions.
-
-### Preparing for the Future
-
-Organizations should:
-- Invest in AI literacy and training for content teams
-- Develop clear AI usage policies and guidelines
-- Experiment with new tools and technologies
-- Build flexible workflows that can adapt to new capabilities
-
-## Conclusion
-
-AI-powered content creation is not about replacing human creativity but amplifying it. The most successful content strategies will combine the efficiency and scale of AI with the insight, emotion, and strategic thinking that only humans can provide.
-
-As these tools continue to evolve, the organizations that embrace AI while maintaining focus on quality, authenticity, and human connection will lead the next generation of content creation.
-
-The future is not about choosing between human or AI content creation—it's about finding the perfect harmony between both to create content that truly resonates with audiences and drives meaningful engagement.
-
----
-
-*What are your thoughts on AI-powered content creation? Share your experiences and insights in the comments below.*
-  `,
-  tags: [
-    "AI",
-    "Content Creation",
-    "Technology",
-    "Future Trends",
-    "Digital Marketing",
-  ],
-  likes: 127,
-  comments: 23,
-};
-
-const relatedPosts = [
-  {
-    id: 2,
-    title: "Best Practices for YouTube Thumbnail Design",
-    image:
-      "https://images.pexels.com/photos/4348401/pexels-photo-4348401.jpeg?auto=compress&cs=tinysrgb&w=400",
-    readTime: "6 min read",
-  },
-  {
-    id: 3,
-    title: "Instagram Marketing: Caption Strategies That Convert",
-    image:
-      "https://images.pexels.com/photos/267350/pexels-photo-267350.jpeg?auto=compress&cs=tinysrgb&w=400",
-    readTime: "7 min read",
-  },
-  {
-    id: 4,
-    title: "Resume Writing in the AI Era: What Recruiters Want",
-    image:
-      "https://images.pexels.com/photos/590016/pexels-photo-590016.jpeg?auto=compress&cs=tinysrgb&w=400",
-    readTime: "9 min read",
-  },
-];
-
-export default function BlogPostClient() {
-  const [isMounted, setIsMounted] = useState(false);
+  const fetchPost = async () => {
+    try {
+      setLoading(true);
+      // Convert slug back to search for title
+      const titleFromSlug = postId.replace(/-/g, ' ');
+      
+      // Query posts by title
+      const postsRef = collection(db, 'blog_posts');
+      const q = query(postsRef, where('status', '==', 'published'));
+      const querySnapshot = await getDocs(q);
+      
+      let postDoc = null;
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const postSlug = data.title
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+        
+        if (postSlug === postId) {
+          postDoc = { id: doc.id, ...data };
+        }
+      });
+      
+      if (!postDoc) {
+        setLoading(false);
+        return;
+      }
+      
+      const postData: BlogPost = {
+        id: postDoc.id,
+        title: postDoc.title || '',
+        content: postDoc.content || '',
+        excerpt: postDoc.excerpt || '',
+        author: 'Admin',
+        imageUrl: postDoc.imageUrl || '',
+        tags: postDoc.tags || [],
+        views: postDoc.views || 0,
+        likes: postDoc.likes || 0,
+        likedBy: postDoc.likedBy || [],
+        bookmarkedBy: postDoc.bookmarkedBy || [],
+        metaDescription: postDoc.metaDescription || '',
+        createdAt: postDoc.createdAt,
+        publishedAt: postDoc.publishedAt
+      };
+        
+        setPost(postData);
+        
+        // Check if user has liked or bookmarked
+        if (user) {
+          setLiked(postData.likedBy?.includes(user.uid) || false);
+          setBookmarked(postData.bookmarkedBy?.includes(user.uid) || false);
+        }
+        
+        // Increment view count (optional, ignore if blocked)
+        try {
+          await updateDoc(doc(db, 'blog_posts', postDoc.id), {
+            views: increment(1)
+          });
+          setPost(prev => prev ? { ...prev, views: prev.views + 1 } : null);
+        } catch (error) {
+          // Ignore view count errors (ad blockers, etc.)
+          console.warn('View count update blocked:', error);
+        }
+        
+        // Fetch comments
+        const commentsRef = collection(db, 'blog_comments');
+        const commentsQuery = query(commentsRef, where('postId', '==', postDoc.id));
+        const commentsSnapshot = await getDocs(commentsQuery);
+        
+        const commentsData: Comment[] = [];
+        commentsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          commentsData.push({
+            id: doc.id,
+            postId: data.postId,
+            userId: data.userId,
+            userName: data.userName,
+            userEmail: data.userEmail,
+            content: data.content,
+            createdAt: data.createdAt
+          });
+        });
+        
+        // Sort comments by creation date (newest first)
+        commentsData.sort((a, b) => {
+          const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+          const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+          return bTime.getTime() - aTime.getTime();
+        });
+        
+        setComments(commentsData);
+    } catch (error) {
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    if (postId) {
+      fetchPost();
+    }
+  }, [postId]);
 
-  if (!isMounted) {
+  const handleLike = async () => {
+    if (!post || !user) {
+      toast({
+        title: "Login Required",
+        description: "Please login to like this post",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const postRef = doc(db, 'blog_posts', post.id);
+      
+      if (liked) {
+        setPost(prev => prev ? { ...prev, likes: prev.likes - 1, likedBy: prev.likedBy?.filter(id => id !== user.uid) } : null);
+        setLiked(false);
+        
+        await updateDoc(postRef, {
+          likes: increment(-1),
+          likedBy: arrayRemove(user.uid)
+        });
+        
+        toast({
+          title: "Unliked",
+          description: "Post removed from your likes"
+        });
+      } else {
+        setPost(prev => prev ? { ...prev, likes: prev.likes + 1, likedBy: [...(prev.likedBy || []), user.uid] } : null);
+        setLiked(true);
+        
+        await updateDoc(postRef, {
+          likes: increment(1),
+          likedBy: arrayUnion(user.uid)
+        });
+        
+        toast({
+          title: "Liked!",
+          description: "Thanks for liking this post"
+        });
+      }
+    } catch (error) {
+      console.warn('Like operation blocked:', error);
+      // Revert optimistic update on error
+      if (liked) {
+        setPost(prev => prev ? { ...prev, likes: prev.likes + 1, likedBy: [...(prev.likedBy || []), user.uid] } : null);
+        setLiked(true);
+      } else {
+        setPost(prev => prev ? { ...prev, likes: prev.likes - 1, likedBy: prev.likedBy?.filter(id => id !== user.uid) } : null);
+        setLiked(false);
+      }
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!post || !user) {
+      toast({
+        title: "Login Required",
+        description: "Please login to bookmark this post",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const postRef = doc(db, 'blog_posts', post.id);
+      
+      if (bookmarked) {
+        setPost(prev => prev ? { ...prev, bookmarkedBy: prev.bookmarkedBy?.filter(id => id !== user.uid) } : null);
+        setBookmarked(false);
+        
+        await updateDoc(postRef, {
+          bookmarkedBy: arrayRemove(user.uid)
+        });
+        
+        toast({
+          title: "Bookmark Removed",
+          description: "Post removed from your bookmarks"
+        });
+      } else {
+        setPost(prev => prev ? { ...prev, bookmarkedBy: [...(prev.bookmarkedBy || []), user.uid] } : null);
+        setBookmarked(true);
+        
+        await updateDoc(postRef, {
+          bookmarkedBy: arrayUnion(user.uid)
+        });
+        
+        toast({
+          title: "Bookmarked!",
+          description: "Post saved to your bookmarks"
+        });
+      }
+    } catch (error) {
+      console.warn('Bookmark operation blocked:', error);
+      // Revert optimistic update on error
+      if (bookmarked) {
+        setPost(prev => prev ? { ...prev, bookmarkedBy: [...(prev.bookmarkedBy || []), user.uid] } : null);
+        setBookmarked(true);
+      } else {
+        setPost(prev => prev ? { ...prev, bookmarkedBy: prev.bookmarkedBy?.filter(id => id !== user.uid) } : null);
+        setBookmarked(false);
+      }
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please login to comment",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!newComment.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a comment",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setSubmittingComment(true);
+      
+      const commentData = {
+        postId: post.id,
+        userId: user.uid,
+        userName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+        userEmail: user.email || '',
+        content: newComment,
+        createdAt: serverTimestamp()
+      };
+      
+      await addDoc(collection(db, 'blog_comments'), commentData);
+      
+      setNewComment('');
+      toast({
+        title: "Comment Added",
+        description: "Your comment has been posted"
+      });
+      
+      // Refresh comments
+      try {
+        await fetchPost();
+      } catch (error) {
+        console.warn('Failed to refresh comments:', error);
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add comment",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post?.title,
+          text: post?.excerpt,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.href);
+      alert('Link copied to clipboard!');
+    }
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const getReadingTime = (content: string) => {
+    const wordsPerMinute = 200;
+    const wordCount = content.split(' ').length;
+    const readingTime = Math.ceil(wordCount / wordsPerMinute);
+    return readingTime;
+  };
+
+  const formatContent = (content: string) => {
+    // Simple markdown-like formatting
+    return content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>')
+      .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-6 mb-3">$1</h2>')
+      .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-4 mb-2">$1</h3>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-purple-600 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/\n\n/g, '</p><p class="mb-4">')
+      .replace(/\n/g, '<br>');
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-1/4 mb-6" />
+              <div className="aspect-video bg-gray-200 rounded-lg mb-6" />
+              <div className="h-12 bg-gray-200 rounded w-3/4 mb-4" />
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-8" />
+              <div className="space-y-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-4 bg-gray-200 rounded w-full" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="text-6xl mb-4">📄</div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">
+              Post Not Found
+            </h1>
+            <p className="text-slate-600 dark:text-slate-300 mb-8">
+              The blog post you're looking for doesn't exist or has been removed.
+            </p>
+            <Button onClick={() => router.push('/blog')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Blog
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -220,340 +436,187 @@ export default function BlogPostClient() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <Navbar />
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Back Button */}
-        <div className="mb-8">
-          <Link href="/blog">
-            <Button
-              variant="ghost"
-              className="hover:bg-purple-50 dark:hover:bg-purple-900/20"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Blog
-            </Button>
-          </Link>
-        </div>
+      <article className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Back Button */}
+          <Button 
+            variant="outline" 
+            onClick={() => router.push('/blog')}
+            className="mb-6"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Blog
+          </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            <Card className="shadow-lg border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm overflow-hidden">
-              {/* Hero Image */}
-              <div className="relative h-64 md:h-80">
-                <img
-                  src={blogPost.image}
-                  alt={blogPost.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-4 left-4">
-                  <Badge className="bg-purple-600 hover:bg-purple-700">
-                    {blogPost.category}
-                  </Badge>
-                </div>
+          {/* Featured Image */}
+          {post.imageUrl && (
+            <div className="aspect-video overflow-hidden rounded-lg mb-8 shadow-lg">
+              <img
+                src={post.imageUrl}
+                alt={post.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+
+          {/* Article Header */}
+          <header className="mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4 leading-tight">
+              {post.title}
+            </h1>
+            
+            <div className="flex flex-wrap items-center gap-4 text-slate-600 dark:text-slate-300 mb-6">
+              <div className="flex items-center">
+                <User className="w-4 h-4 mr-2" />
+                <span>{post.author}</span>
               </div>
+              <div className="flex items-center">
+                <Calendar className="w-4 h-4 mr-2" />
+                <span>{formatDate(post.publishedAt)}</span>
+              </div>
+              <div className="flex items-center">
+                <Clock className="w-4 h-4 mr-2" />
+                <span>{getReadingTime(post.content)} min read</span>
+              </div>
+              <div className="flex items-center">
+                <Eye className="w-4 h-4 mr-2" />
+                <span>{post.views} views</span>
+              </div>
+            </div>
 
-              <CardContent className="p-8">
-                {/* Article Header */}
-                <div className="mb-8">
-                  <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
-                    {blogPost.title}
-                  </h1>
+            {/* Tags */}
+            {post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {post.tags.map((tag, index) => (
+                  <Badge key={index} variant="outline">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
 
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 dark:text-slate-400 mb-6">
-                    <div className="flex items-center">
-                      <User className="w-4 h-4 mr-1" />
-                      {blogPost.author}
-                    </div>
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      {new Date(blogPost.date).toLocaleDateString()}
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {blogPost.readTime}
-                    </div>
-                  </div>
+            {/* Excerpt */}
+            {post.excerpt && (
+              <p className="text-xl text-slate-600 dark:text-slate-300 leading-relaxed mb-8 font-light">
+                {post.excerpt}
+              </p>
+            )}
+          </header>
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-wrap items-center gap-4 mb-6">
-                    <Button variant="outline" size="sm">
-                      <ThumbsUp className="w-4 h-4 mr-2" />
-                      {blogPost.likes}
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      {blogPost.comments}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        isMounted &&
-                        copyToClipboard(
-                          window.location.href,
-                          "Link copied to clipboard!"
-                        )
-                      }
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Link
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Bookmark className="w-4 h-4 mr-2" />
-                      Save
-                    </Button>
-                  </div>
-
-                  <Separator />
-                </div>
-
-                {/* Article Content */}
-                <div className="prose prose-slate dark:prose-invert max-w-none relative">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="absolute top-0 right-0"
-                    onClick={() =>
-                      isMounted &&
-                      copyToClipboard(
-                        blogPost.content,
-                        "Article content copied to clipboard!"
-                      )
-                    }
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy Content
-                  </Button>
-                  <div className="whitespace-pre-line text-slate-700 dark:text-slate-300 leading-relaxed">
-                    {blogPost.content.split("\n").map((paragraph, index) => {
-                      if (paragraph.startsWith("# ")) {
-                        return (
-                          <h1
-                            key={index}
-                            className="text-3xl font-bold text-slate-900 dark:text-white mt-8 mb-4"
-                          >
-                            {paragraph.replace("# ", "")}
-                          </h1>
-                        );
-                      }
-                      if (paragraph.startsWith("## ")) {
-                        return (
-                          <h2
-                            key={index}
-                            className="text-2xl font-bold text-slate-900 dark:text-white mt-6 mb-3"
-                          >
-                            {paragraph.replace("## ", "")}
-                          </h2>
-                        );
-                      }
-                      if (paragraph.startsWith("### ")) {
-                        return (
-                          <h3
-                            key={index}
-                            className="text-xl font-semibold text-slate-900 dark:text-white mt-4 mb-2"
-                          >
-                            {paragraph.replace("### ", "")}
-                          </h3>
-                        );
-                      }
-                      if (
-                        paragraph.startsWith("**") &&
-                        paragraph.endsWith("**")
-                      ) {
-                        return (
-                          <p
-                            key={index}
-                            className="font-semibold text-slate-900 dark:text-white mb-2"
-                          >
-                            {paragraph.replace(/\*\*/g, "")}
-                          </p>
-                        );
-                      }
-                      if (paragraph.startsWith("- ")) {
-                        return (
-                          <li key={index} className="ml-4 mb-1">
-                            {paragraph.replace("- ", "")}
-                          </li>
-                        );
-                      }
-                      if (paragraph.trim() === "---") {
-                        return <Separator key={index} className="my-6" />;
-                      }
-                      if (paragraph.trim() === "") {
-                        return <br key={index} />;
-                      }
-                      return (
-                        <p key={index} className="mb-4 leading-relaxed">
-                          {paragraph}
-                        </p>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Tags */}
-                <div className="mt-8 pt-6 border-t dark:border-slate-700">
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
-                    Tags
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {blogPost.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Download Options */}
-                <div className="mt-8 pt-6 border-t dark:border-slate-700">
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
-                    Download Options
-                  </h3>
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        isMounted &&
-                        downloadFile(
-                          blogPost.content,
-                          `${blogPost.title
-                            .replace(/\s+/g, "-")
-                            .toLowerCase()}.txt`
-                        )
-                      }
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download as TXT
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        isMounted &&
-                        downloadFile(
-                          blogPost.content,
-                          `${blogPost.title
-                            .replace(/\s+/g, "-")
-                            .toLowerCase()}.md`,
-                          "text/markdown"
-                        )
-                      }
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download as Markdown
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        if (!isMounted) return;
-                        const htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-  <title>${blogPost.title}</title>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-    h1, h2, h3 { color: #333; }
-    .meta { color: #666; font-size: 0.9em; margin-bottom: 20px; }
-  </style>
-</head>
-<body>
-  <h1>${blogPost.title}</h1>
-  <div class="meta">
-    <p>Author: ${blogPost.author} | Published: ${blogPost.date} | ${
-                          blogPost.readTime
-                        }</p>
-  </div>
-  <div class="content">
-    ${blogPost.content
-      .split("\n")
-      .map((p) => `<p>${p}</p>`)
-      .join("")}
-  </div>
-</body>
-</html>`;
-                        downloadFile(
-                          htmlContent,
-                          `${blogPost.title
-                            .replace(/\s+/g, "-")
-                            .toLowerCase()}.html`,
-                          "text/html"
-                        );
-                      }}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download as HTML
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Article Content */}
+          <div className="prose prose-lg max-w-none dark:prose-invert">
+            <div 
+              className="text-slate-700 dark:text-slate-300 leading-relaxed"
+              dangerouslySetInnerHTML={{ 
+                __html: `<p class="mb-4">${formatContent(post.content)}</p>` 
+              }}
+            />
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              {/* Author Card */}
-              <Card className="shadow-lg border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm">
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <User className="w-8 h-8 text-white" />
+          {/* Article Footer */}
+          <footer className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant={liked ? "default" : "outline"}
+                  onClick={handleLike}
+                  className={liked ? "bg-red-500 hover:bg-red-600" : ""}
+                >
+                  <Heart className={`w-4 h-4 mr-2 ${liked ? "fill-current" : ""}`} />
+                  {post.likes} {post.likes === 1 ? 'Like' : 'Likes'}
+                </Button>
+                <Button
+                  variant={bookmarked ? "default" : "outline"}
+                  onClick={handleBookmark}
+                  className={bookmarked ? "bg-blue-500 hover:bg-blue-600" : ""}
+                >
+                  {bookmarked ? (
+                    <BookmarkCheck className="w-4 h-4 mr-2" />
+                  ) : (
+                    <Bookmark className="w-4 h-4 mr-2" />
+                  )}
+                  {bookmarked ? 'Bookmarked' : 'Bookmark'}
+                </Button>
+                <Button variant="outline" onClick={handleShare}>
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share
+                </Button>
+              </div>
+              
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                Published on {formatDate(post.publishedAt)}
+              </div>
+            </div>
+
+            {/* Comments Section */}
+            <div className="space-y-6">
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center">
+                <MessageCircle className="w-6 h-6 mr-2" />
+                Comments ({comments.length})
+              </h3>
+
+              {/* Add Comment */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="space-y-4">
+                    <Textarea
+                      placeholder={user ? "Write your comment..." : "Please login to comment"}
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      rows={3}
+                      disabled={!user}
+                    />
+                    <div className="flex justify-end">
+                      <Button 
+                        onClick={handleAddComment}
+                        disabled={!user || !newComment.trim() || submittingComment}
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        {submittingComment ? 'Posting...' : 'Post Comment'}
+                      </Button>
+                    </div>
                   </div>
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-2">
-                    {blogPost.author}
-                  </h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-                    AI Technology Writer & Content Strategist
-                  </p>
-                  <Button size="sm" variant="outline" className="w-full">
-                    Follow
-                  </Button>
                 </CardContent>
               </Card>
 
-              {/* Related Posts */}
-              <Card className="shadow-lg border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-4">
-                    Related Articles
-                  </h3>
-                  <div className="space-y-4">
-                    {relatedPosts.map((post) => (
-                      <Link key={post.id} href={`/blog/${post.id}`}>
-                        <div className="flex space-x-3 group cursor-pointer">
-                          <img
-                            src={post.image}
-                            alt={post.title}
-                            className="w-16 h-16 object-cover rounded group-hover:scale-105 transition-transform"
-                          />
+              {/* Comments List */}
+              <div className="space-y-4">
+                {comments.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                    <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No comments yet. Be the first to comment!</p>
+                  </div>
+                ) : (
+                  comments.map((comment) => (
+                    <Card key={comment.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
+                            {comment.userName.charAt(0).toUpperCase()}
+                          </div>
                           <div className="flex-1">
-                            <h4 className="text-sm font-medium text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-2">
-                              {post.title}
-                            </h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                              {post.readTime}
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="font-semibold text-slate-900 dark:text-white">
+                                {comment.userName}
+                              </span>
+                              <span className="text-sm text-slate-500 dark:text-slate-400">
+                                {formatDate(comment.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                              {comment.content}
                             </p>
                           </div>
                         </div>
-                      </Link>
-                    ))}
-                  </div>
-                  <Link href="/blog">
-                    <Button variant="ghost" size="sm" className="w-full mt-4">
-                      View All Articles
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
+          </footer>
         </div>
-      </div>
+      </article>
     </div>
   );
 }

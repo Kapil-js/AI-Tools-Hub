@@ -18,11 +18,9 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Dynamic import for ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 import 'react-quill/dist/quill.snow.css';
 
@@ -44,27 +42,7 @@ export default function CreateBlogPost() {
   const [showPreview, setShowPreview] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Quill editor configuration
-  const quillModules = useMemo(() => ({
-    toolbar: [
-      [{ 'header': [1, 2, 3, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      [{ 'script': 'sub'}, { 'script': 'super' }],
-      [{ 'indent': '-1'}, { 'indent': '+1' }],
-      [{ 'direction': 'rtl' }],
-      [{ 'color': [] }, { 'background': [] }],
-      [{ 'align': [] }],
-      ['link', 'image', 'video'],
-      ['clean']
-    ],
-  }), []);
 
-  const quillFormats = [
-    'header', 'bold', 'italic', 'underline', 'strike',
-    'list', 'bullet', 'script', 'indent', 'direction',
-    'color', 'background', 'align', 'link', 'image', 'video'
-  ];
 
   const insertText = (before: string, after: string) => {
     const textarea = textareaRef.current;
@@ -136,14 +114,22 @@ export default function CreateBlogPost() {
 
     try {
       setUploading(true);
-      const fileName = `blog-images/${Date.now()}-${imageFile.name}`;
-      const imageRef = ref(storage, fileName);
       
-      await uploadBytes(imageRef, imageFile);
-      const downloadURL = await getDownloadURL(imageRef);
-      
-      return downloadURL;
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve(reader.result as string);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(imageFile);
+      });
     } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to process image",
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setUploading(false);
@@ -196,9 +182,10 @@ export default function CreateBlogPost() {
       
       router.push('/admin/content');
     } catch (error) {
+      console.error('Blog save error:', error);
       toast({
         title: "Error",
-        description: "Failed to save blog post",
+        description: error instanceof Error ? error.message : "Failed to save blog post",
         variant: "destructive"
       });
     } finally {
@@ -294,8 +281,6 @@ export default function CreateBlogPost() {
                     theme="snow"
                     value={formData.content}
                     onChange={(content) => setFormData({ ...formData, content })}
-                    modules={quillModules}
-                    formats={quillFormats}
                     placeholder="Write your blog post content here..."
                     style={{ height: '400px' }}
                   />

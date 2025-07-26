@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,8 +18,10 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+import 'react-quill/dist/quill.snow.css';
 
 export default function EditBlogPost() {
   const [formData, setFormData] = useState({
@@ -36,42 +39,14 @@ export default function EditBlogPost() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [uploading, setUploading] = useState(false);
   
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
   const postId = params.id as string;
 
-  const insertText = (before: string, after: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = formData.content.substring(start, end);
-    const newText = formData.content.substring(0, start) + before + selectedText + after + formData.content.substring(end);
-    
-    setFormData({ ...formData, content: newText });
-    
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + before.length, start + before.length + selectedText.length);
-    }, 0);
-  };
-
-  const formatContent = (content: string) => {
-    return content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-6 mb-4">$1</h1>')
-      .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-5 mb-3">$1</h2>')
-      .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-4 mb-2">$1</h3>')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-purple-600 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
-      .replace(/^- (.*$)/gm, '<li class="ml-4">$1</li>')
-      .replace(/\n\n/g, '</p><p class="mb-4">')
-      .replace(/\n/g, '<br>');
-  };
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -133,16 +108,26 @@ export default function EditBlogPost() {
     if (!imageFile) return '';
 
     try {
-      const fileName = `blog-images/${Date.now()}-${imageFile.name}`;
-      const imageRef = ref(storage, fileName);
+      setUploading(true);
       
-      await uploadBytes(imageRef, imageFile);
-      const downloadURL = await getDownloadURL(imageRef);
-      
-      return downloadURL;
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve(reader.result as string);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(imageFile);
+      });
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to process image",
+        variant: "destructive"
+      });
       throw error;
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -292,56 +277,37 @@ export default function EditBlogPost() {
 
               <div>
                 <Label htmlFor="content">Content *</Label>
-                {!showPreview && (
-                  <div className="border rounded-md">
-                    <div className="flex items-center space-x-2 p-2 border-b bg-gray-50">
-                      <Button type="button" variant="outline" size="sm" onClick={() => insertText('**', '**')}>
-                        <strong>B</strong>
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => insertText('*', '*')}>
-                        <em>I</em>
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => insertText('# ', '')}>
-                        H1
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => insertText('## ', '')}>
-                        H2
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => insertText('[Link Text](', ')')}>
-                        Link
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => insertText('- ', '')}>
-                        List
-                      </Button>
-                    </div>
-                    <Textarea
-                      id="content"
-                      ref={textareaRef}
-                      value={formData.content}
-                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      placeholder="Write your blog post content here..."
-                      rows={20}
-                      className="border-0 resize-none focus:ring-0"
-                    />
-                  </div>
-                )}
-
-                {showPreview && (
-                  <div className="mt-4">
-                    <div className="border rounded-md p-4 min-h-[400px] bg-white prose prose-lg max-w-none">
-                      {formData.content ? (
-                        <div 
-                          dangerouslySetInnerHTML={{ 
-                            __html: formatContent(formData.content)
-                          }}
-                        />
-                      ) : (
-                        <p className="text-gray-500 italic">Start writing to see preview...</p>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div className="border rounded-md overflow-hidden">
+                  <ReactQuill
+                    theme="snow"
+                    value={formData.content}
+                    onChange={(content) => setFormData({ ...formData, content })}
+                    placeholder="Write your blog post content here..."
+                    style={{ height: '400px' }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use the rich text editor toolbar for formatting, links, and more
+                </p>
               </div>
+
+              {/* Preview Mode */}
+              {showPreview && (
+                <div className="mt-4">
+                  <Label>Preview</Label>
+                  <div className="border rounded-md p-4 min-h-[400px] bg-white prose prose-lg max-w-none">
+                    {formData.content ? (
+                      <div 
+                        dangerouslySetInnerHTML={{ 
+                          __html: formData.content
+                        }}
+                      />
+                    ) : (
+                      <p className="text-gray-500 italic">Start writing to see preview...</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
